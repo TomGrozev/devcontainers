@@ -55,7 +55,7 @@ variable "OPENCODE_VERSION" {
 }
 // renovate: datasource=github-releases depName=can1357/oh-my-pi extractVersion=^v(?<version>.+)$
 variable "OMP_VERSION" {
-  default = "18.1.14"
+  default = "18.1.15"
 }
 // renovate: datasource=github-releases depName=zellij-org/zellij extractVersion=^v(?<version>.+)$
 variable "ZELLIJ_VERSION" {
