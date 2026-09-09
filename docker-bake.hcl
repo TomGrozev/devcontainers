@@ -51,7 +51,7 @@ variable "BAT_VERSION" {
 }
 // renovate: datasource=github-releases depName=anomalyco/opencode extractVersion=^v(?<version>.+)$
 variable "OPENCODE_VERSION" {
-  default = "1.18.29"
+  default = "1.18.30"
 }
 // renovate: datasource=github-releases depName=can1357/oh-my-pi extractVersion=^v(?<version>.+)$
 variable "OMP_VERSION" {
