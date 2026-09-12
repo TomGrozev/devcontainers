@@ -71,7 +71,7 @@ variable "FD_VERSION" {
 }
 // renovate: datasource=github-releases depName=hyperlogue/captain-miao extractVersion=^v(?<version>.+)$
 variable "MIAO_VERSION" {
-  default = "0.8.1"
+  default = "0.9.0"
 }
 // renovate: datasource=rust-version depName=rust
 variable "RUST_VERSION" {
