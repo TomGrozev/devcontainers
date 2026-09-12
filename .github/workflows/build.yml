@@ -5,6 +5,12 @@ on:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Explicit semver release tag to publish (optional)"
+        type: string
+        required: false
+        default: ""
   workflow_call:
     inputs:
       release_tag:
@@ -26,6 +32,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Extract version tag
         id: version
@@ -38,6 +46,10 @@ jobs:
             tag=""
           fi
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+          # Actual checked-out commit (differs from github.sha when release_tag
+          # pins the build to a bot tag off the master head).
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -56,7 +68,7 @@ jobs:
         uses: docker/bake-action@v7
         env:
           VERSION: ${{ steps.version.outputs.tag }}
-          GIT_SHA: ${{ github.sha }}
+          GIT_SHA: ${{ steps.version.outputs.sha }}
           CREATED: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
         with:
           source: .

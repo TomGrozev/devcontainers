@@ -13,6 +13,10 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-24.04
+    outputs:
+      release_tag: ${{ steps.bump.outputs.tag }}
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+      has_major: ${{ steps.major.outputs.has_major }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -134,10 +138,9 @@ jobs:
           git tag -a "$new_tag" -m "Automated release $new_tag"
           git push origin "$new_tag" --follow-tags
 
-          # Build is NOT invoked here as a step-level reusable workflow call —
-          # GitHub only resolves those at job level; at step level the call fails
-          # with "Can't find 'action.yml'/'Dockerfile'" (the Aug 24, 2026 failure).
-          # The tag push itself triggers build.yml via on: push: tags.
+          # Build invocation lives in the job-level `build` job below, not here:
+          # reusable workflows resolve only at job level, and a GITHUB_TOKEN
+          # tag push does not fire on: push: tags workflows anyway.
           #
           # Sync the version table back to master via PR: protected master requires
           # a signed commit and the smoke check, which GITHUB_TOKEN pushes cannot
@@ -174,7 +177,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Skip notice (major present)
-        if: steps.changes.outputs.has_changes == 'true' && steps.major.outputs.has_major == '1'
+  build:
+    needs: release
+    if: needs.release.outputs.release_tag != ''
+    uses: ./.github/workflows/build.yml
+    with:
+      release_tag: ${{ needs.release.outputs.release_tag }}
+    permissions:
+      contents: read
+      packages: write
+
+  skip_notice:
+    needs: release
+    if: needs.release.outputs.release_tag == ''
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Explain skip
         run: |
-          echo "::warning::Major dependency update(s) detected since last tag. Skipping automated release; please cut a manual release/tag."
+          if [[ "${{ needs.release.outputs.has_changes }}" != "true" ]]; then
+            echo "No image-relevant changes since the last release tag; nothing to release."
+          else
+            echo "::warning::Major dependency update(s) detected since last tag. Skipping automated release; please cut a manual release/tag."
+          fi
