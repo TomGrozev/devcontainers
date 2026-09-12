@@ -20,7 +20,7 @@ All images run as user `dev` (UID/GID 1000), shell `/bin/zsh`, locale `en_AU.UTF
 - Node.js 22 + GitHub CLI
 - Neovim (multi-arch, `/opt/nvim`)
 - rtk, delta, ripgrep, bat, OpenCode, omp (system binaries on PATH)
-- apt packages: build-essential, gcc, g++, git, jq, fzf, zsh, gpg, openssh-client, curl, ca-certificates, procps, sudo, unzip, zoxide, tmux, locales
+- apt packages: build-essential, gcc, g++, git, jq, fzf, zsh, gpg, openssh-client, curl, ca-certificates, procps, sudo, unzip, zoxide, tmux, locales, ffmpeg
 - Rootless `su`/`sudo` passthrough wrappers
 - User `dev` UID/GID 1000, `/etc/zsh/zshrc` skeleton
 

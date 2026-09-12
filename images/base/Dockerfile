@@ -83,6 +83,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     gpg \
     gpg-agent \
     zoxide \
+    ffmpeg \
     && sed -i 's/^# *en_AU.UTF-8/en_AU.UTF-8/' /etc/locale.gen \
     && locale-gen en_AU.UTF-8 \
     && ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime \
@@ -291,4 +292,8 @@ RUN case "${TARGETARCH}" in \
     && rm -rf /tmp/miao-bundled-all-server-v${MIAO_VERSION}-${MiaoTriple} /tmp/miao.tar.gz
 
 WORKDIR /home/dev/workspace
+
+# Default command keeps the container alive when run bare (Coder overrides
+# this with the agent init script).
+CMD ["tail", "-f", "/dev/null"]
 
