@@ -48,6 +48,14 @@
       "automerge": true,
       "automergeType": "pr",
       "automergeStrategy": "squash"
+    },
+    {
+      "description": "Pin git-graph to the Debian forky pool (not in trixie)",
+      "matchDatasources": ["deb"],
+      "matchPackageNames": ["git-graph"],
+      "registryUrls": [
+        "https://deb.debian.org/debian?suite=forky&components=main&binaryArch=amd64"
+      ]
     }
   ]
 }

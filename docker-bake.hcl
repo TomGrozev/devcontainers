@@ -73,6 +73,11 @@ variable "FD_VERSION" {
 variable "MIAO_VERSION" {
   default = "0.9.1"
 }
+// renovate: datasource=deb depName=git-graph
+variable "GIT_GRAPH_VERSION" {
+  default = "0.8.0-3"
+}
+
 // renovate: datasource=rust-version depName=rust
 variable "RUST_VERSION" {
   default = "1.98.1"
@@ -103,6 +108,7 @@ function "common_args" {
     ZELLIJ_VERSION   = "${ZELLIJ_VERSION}"
     FD_VERSION       = "${FD_VERSION}"
     MIAO_VERSION     = "${MIAO_VERSION}"
+    GIT_GRAPH_VERSION = "${GIT_GRAPH_VERSION}"
   }
 }
 
