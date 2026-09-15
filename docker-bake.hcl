@@ -78,6 +78,11 @@ variable "GIT_GRAPH_VERSION" {
   default = "0.8.0-3"
 }
 
+// renovate: datasource=rust-version depName=rust
+variable "RUST_VERSION" {
+  default = "1.98.1"
+}
+
 // ── Target groups ──────────────────────────────────────────────────────────
 
 group "all" {
