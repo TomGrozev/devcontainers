@@ -24,6 +24,7 @@ ripgrep=$(echo "$json" | jq -r '.target.elixir.args.RIPGREP_VERSION // "?"')
 bat=$(echo "$json" | jq -r '.target.elixir.args.BAT_VERSION // "?"')
 opencode=$(echo "$json" | jq -r '.target.elixir.args.OPENCODE_VERSION // "?"')
 omp=$(echo "$json" | jq -r '.target.elixir.args.OMP_VERSION // "?"')
+gitgraph=$(echo "$json" | jq -r '.target.elixir.args.GIT_GRAPH_VERSION // "?"')
 
 table="| Component | Version |
 | --- | --- |
@@ -38,7 +39,8 @@ table="| Component | Version |
 | ripgrep | ${ripgrep} |
 | bat | ${bat} |
 | OpenCode | ${opencode} |
-| omp | ${omp} |"
+| omp | ${omp} |
+| git-graph | ${gitgraph} |"
 
 # Use sed to replace everything between the markers
 if grep -q '<!-- versions:start -->' README.md; then

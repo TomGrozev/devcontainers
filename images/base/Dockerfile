@@ -27,6 +27,8 @@ ARG BUN_VERSION
 ARG FD_VERSION
 # renovate: datasource=github-releases depName=hyperlogue/captain-miao extractVersion=^v(?<version>.+)$
 ARG MIAO_VERSION
+# renovate: datasource=deb depName=git-graph
+ARG GIT_GRAPH_VERSION
 
 FROM debian:${DEBIAN_VERSION}
 
@@ -45,6 +47,7 @@ ARG ZELLIJ_VERSION
 ARG BUN_VERSION
 ARG FD_VERSION
 ARG MIAO_VERSION
+ARG GIT_GRAPH_VERSION
 ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -292,6 +295,22 @@ RUN case "${TARGETARCH}" in \
     && rm -rf /tmp/miao-bundled-all-server-v${MIAO_VERSION}-${MiaoTriple} /tmp/miao.tar.gz
 
 WORKDIR /home/dev/workspace
+
+# git-graph (git history visualizer): Debian binary package, not in trixie —
+# fetched from the forky pool instead. Its deps (libc6, libgcc-s1, libgit2-1.9)
+# resolve from trixie. Renovate: datasource=deb, suite=forky — see
+# .github/renovate.json.
+USER root
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    set -e \
+    && apt-get update \
+    && curl -fsSL -o /tmp/git-graph.deb \
+        "https://deb.debian.org/debian/pool/main/g/git-graph/git-graph_${GIT_GRAPH_VERSION}_${TARGETARCH}.deb" \
+    && apt-get install -y --no-install-recommends /tmp/git-graph.deb \
+    && rm -f /tmp/git-graph.deb \
+    && git-graph --version
+USER dev
 
 # Default command keeps the container alive when run bare (Coder overrides
 # this with the agent init script).
