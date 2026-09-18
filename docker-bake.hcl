@@ -71,7 +71,7 @@ variable "FD_VERSION" {
 }
 // renovate: datasource=github-releases depName=hyperlogue/captain-miao extractVersion=^v(?<version>.+)$
 variable "MIAO_VERSION" {
-  default = "0.9.1"
+  default = "0.9.2"
 }
 // renovate: datasource=deb depName=git-graph
 variable "GIT_GRAPH_VERSION" {
