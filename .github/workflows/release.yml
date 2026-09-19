@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       release_tag: ${{ steps.bump.outputs.tag }}
       has_changes: ${{ steps.changes.outputs.has_changes }}
@@ -190,7 +190,7 @@ jobs:
   skip_notice:
     needs: release
     if: needs.release.outputs.release_tag == ''
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Explain skip
         run: |
