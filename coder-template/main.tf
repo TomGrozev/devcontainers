@@ -149,6 +149,39 @@ locals {
   git_name  = coalesce(data.coder_parameter.git_name.value, data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name, "TomGrozev")
   git_email = coalesce(data.coder_parameter.git_email.value, data.coder_workspace_owner.me.email, "dev@coder.com")
   image     = data.coder_parameter.image.value != "" ? data.coder_parameter.image.value : "ghcr.io/tomgrozev/devcontainer-${data.coder_parameter.language.value}:latest"
+
+  # Where `coder dotfiles` actually keeps its checkout: the CLI joins its global
+  # config dir with the `--repo-dir` value (cli/dotfiles.go:
+  # filepath.Join(cfgDir, dotfilesRepoDir); --repo-dir defaults to "dotfiles",
+  # env CODER_DOTFILES_REPO_DIR). On Linux that config dir defaults to
+  # ~/.config/coderv2, so the checkout lands at the path below — NOT the
+  # ~/.coder/dotfiles this template used to assume, which nothing ever created:
+  # the `-d "$DOTFILES_DIR/.git"` guard below then skipped silently and the sync
+  # was a no-op. CODER_CONFIG_DIR is pinned to the same local on the container
+  # (see the env block) so the CLI's choice and this sync cannot drift apart.
+  dotfiles_config_dir = "/home/dev/.config/coderv2"
+  dotfiles_checkout   = "${local.dotfiles_config_dir}/dotfiles"
+
+  # Hard-sync the dotfiles checkout to its upstream branch, then let
+  # `coder dotfiles` re-apply it. The dotfiles repo's install.sh symlinks
+  # ~/.gitconfig and friends into this checkout (and ~/.omp/agent/extensions
+  # too), so ANY write to those files — a `git config --global` call, an edit
+  # made from a workspace, a plugin install, an omp lock file — leaves the
+  # checkout dirty, and the `git pull --ff-only` inside `coder dotfiles` then
+  # refuses to run and silently re-applies the stale checkout instead, so the
+  # dotfiles stop updating. This checkout is therefore kept as a mirror of the
+  # remote: local changes are discarded, never applied. Shared by the startup
+  # script and the Refresh Dotfiles button so the two cannot drift.
+  dotfiles_sync = <<-EOT
+    DOTFILES_DIR="${local.dotfiles_checkout}"
+    if [ -d "$DOTFILES_DIR/.git" ]; then
+      DOTFILES_BRANCH=$(git -C "$DOTFILES_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo master)
+      DOTFILES_UPSTREAM="origin/$DOTFILES_BRANCH"
+      git -C "$DOTFILES_DIR" fetch --prune origin || true
+      git -C "$DOTFILES_DIR" reset --hard "$DOTFILES_UPSTREAM" || true
+      git -C "$DOTFILES_DIR" clean -fd || true
+    fi
+  EOT
 }
 
 # ????????? Agent ?????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
@@ -164,8 +197,11 @@ resource "coder_agent" "main" {
     # Ensure common dirs exist on the freshly-mounted PVC
     mkdir -p /home/dev/workspace /home/dev/.local/bin /home/dev/.local/share /home/dev/.config /home/dev/.ssh
 
-    # Mark workspace as a safe git directory (avoids dubious ownership errors)
-    git config --global --add safe.directory /home/dev/workspace
+    # Workspace safety for git (avoids dubious ownership errors) is supplied by
+    # the GIT_CONFIG_* env vars on the deployment, NOT by a `git config
+    # --global` write here: ~/.gitconfig is a symlink into the dotfiles
+    # checkout, so writing it would dirty that checkout and block the dotfiles
+    # sync below.
 
     # Set git identity only if not already configured
     if [ -z "$(git config --global user.name)" ]; then
@@ -193,9 +229,7 @@ resource "coder_agent" "main" {
     # coder/dotfiles module) so anything dotfiles write to ~/.zshenv is
     # guaranteed to be in place before `opencode serve` starts below.
     # Always re-applies dotfiles on every workspace start.
-    if [ -d /home/dev/.coder/dotfiles/.git ]; then
-      git -C /home/dev/.coder/dotfiles pull --force || true
-    fi
+    ${local.dotfiles_sync}
     GIT_SSH_COMMAND="$GIT_SSH_COMMAND -o StrictHostKeyChecking=accept-new" \
       coder dotfiles "${data.coder_parameter.dotfiles_uri.value}" -y 2>&1 | tee /home/dev/.dotfiles.log || true
 
@@ -344,6 +378,35 @@ resource "kubernetes_deployment_v1" "main" {
           env {
             name  = "ZELLIJ_AUTOATTACH"
             value = "0"
+          }
+
+          # Pin the coder CLI's global config dir. `coder dotfiles` clones and
+          # updates "<config dir>/dotfiles", so this is what keeps the checkout
+          # path in `local.dotfiles_checkout` — used by the sync that runs before
+          # `coder dotfiles` — exact rather than a guess about the CLI default.
+          env {
+            name  = "CODER_CONFIG_DIR"
+            value = local.dotfiles_config_dir
+          }
+
+          # safe.directory via git's env-config mechanism, which git treats as
+          # "command line" scope — the highest-precedence protected config, so
+          # it covers the ownership check without persisting anything to disk.
+          # (The `git config --global safe.directory` in images/base runs as
+          # root and lands in /root/.gitconfig, so it never reached the dev
+          # user; writing it at startup instead would dirty the symlinked
+          # ~/.gitconfig inside the dotfiles checkout.)
+          env {
+            name  = "GIT_CONFIG_COUNT"
+            value = "1"
+          }
+          env {
+            name  = "GIT_CONFIG_KEY_0"
+            value = "safe.directory"
+          }
+          env {
+            name  = "GIT_CONFIG_VALUE_0"
+            value = "*"
           }
 
           resources {
@@ -603,6 +666,9 @@ resource "coder_app" "refresh_dotfiles" {
   slug         = "refresh-dotfiles"
   display_name = "Refresh Dotfiles"
   icon         = "/icon/dotfiles.svg"
-  command      = "if [ -d /home/dev/.coder/dotfiles/.git ]; then git -C /home/dev/.coder/dotfiles pull --force; fi && coder dotfiles \"${data.coder_parameter.dotfiles_uri.value}\" -y"
+  command      = <<-EOT
+    ${local.dotfiles_sync}
+    coder dotfiles "${data.coder_parameter.dotfiles_uri.value}" -y
+  EOT
   share        = "owner"
 }

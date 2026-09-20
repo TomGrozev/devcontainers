@@ -53,7 +53,7 @@ Parameters are configurable from the Coder UI at workspace creation or (for muta
 | Resource                                  | Purpose                                                                                                                                                                                                                                            |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `coder_agent.main`                        | Registers the Coder agent in the workspace. Works in `/home/dev/workspace`.                                                                                                                                                                        |
-| `coder_agent.main.startup_script`         | Inlines first-time setup: creates `/home/dev/{workspace,.local/bin,.local/share,.config,.ssh}`, sets global git identity if not already configured, marks the workspace as a safe git directory, runs the language-specific `bootstrap.sh` if present, clones a repo if set, applies dotfiles via `coder dotfiles`, and removes the legacy `tau-mirror` omp extension from older PVCs. captain-miao config is dotfiles-owned. |
+| `coder_agent.main.startup_script`         | Inlines first-time setup: creates `/home/dev/{workspace,.local/bin,.local/share,.config,.ssh}`, sets global git identity if not already configured, runs the language-specific `bootstrap.sh` if present, clones a repo if set, hard-syncs dotfiles to their upstream branch before applying via `coder dotfiles`, and removes the legacy `tau-mirror` omp extension from older PVCs. captain-miao config is dotfiles-owned. |
 | `kubernetes_persistent_volume_claim_v1.home` | Persistent `/home/dev` across workspace restarts. Labelled with Coder workspace, user, and resource metadata.                                                                                                                                  |
 | `kubernetes_deployment_v1.main`           | Runs the container rootless (UID/GID 1000, all capabilities dropped, seccomp `RuntimeDefault`), uses `Recreate` strategy, applies pod anti-affinity, and sets CPU/memory requests and limits from the `cpu`/`memory` parameters.                    |
 | `coder_script.zellij_web`                 | On-start script that runs under `zsh` (so `~/.zshenv` is sourced and its environment — the proper omp environment — is inherited by the daemon), then mints a zellij web login token once (stored on the PVC) and daemonizes `zellij web` on loopback `:8082` for mobile browser access.                        |
@@ -74,6 +74,7 @@ The following environment variables are set in the workspace container:
 | ---------------- | ------------------------------ | -------------------------------------------------------------------- |
 | `CODER_AGENT_TOKEN` | `coder_agent.main.token`     | Coder agent authentication (required).                               |
 | `DEVCONTAINER`   | `"true"`                       | Container detection used by dotfiles (e.g. permissive opencode permission tier). |
+| `CODER_CONFIG_DIR` | `/home/dev/.config/coderv2`  | Coder CLI global config dir; `coder dotfiles` keeps its checkout at `<dir>/dotfiles`. |
 
 The agent's working directory is `/home/dev/workspace`.
 
@@ -125,10 +126,10 @@ The `miao` and `miao-server` binaries ship in the image (pinned in `docker-bake.
 5. The agent's `startup_script` runs first-time init:
    - Creates `/home/dev/{workspace,.local/bin,.local/share,.config,.ssh}`.
    - Sets global git identity only if not already configured.
-   - Marks `/home/dev/workspace` as a safe git directory.
+   - Git safety for `/home/dev/workspace` comes from the deployment's `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_0`/`GIT_CONFIG_VALUE_0` env vars, not from a write to `~/.gitconfig`.
    - Runs the language-specific `bootstrap.sh` from `/usr/local/share/devcontainer/` if present.
    - Clones the `repo` parameter into `/home/dev/workspace` if set and not already a git repo.
-   - Applies dotfiles via `coder dotfiles <dotfiles_uri> -y`, re-applied on every start.
+   - Applies dotfiles via `coder dotfiles <dotfiles_uri> -y` (hard-reset to upstream branch first), re-applied on every start.
 6. The `coder_script.zellij_web` script (also on start) mints the zellij web token once and daemonizes the zellij web server — wrapped in `zsh -c` so `~/.zshenv` is sourced and the daemon (and every session it spawns) runs with the user's proper omp environment.
 7. The `coder_app` resources register the dashboard buttons and web-app tiles described above.
 
@@ -160,6 +161,8 @@ Set the `repo` parameter in the Coder UI (e.g. `git@github.com:you/repo.git`). T
 
 The `dotfiles_uri` parameter controls which dotfiles repo is applied (mutable, so you can swap it per-workspace). The startup script applies dotfiles on every start; to refresh dotfiles without restarting, use the **Refresh Dotfiles** button in the workspace dashboard.
 
+The checkout at `/home/dev/.config/coderv2/dotfiles` is a deploy staging area, not a place to edit — it is the coder CLI's own config dir plus its `--repo-dir` (default `dotfiles`), i.e. `$CODER_CONFIG_DIR/dotfiles`, not a path this template chooses. `install.sh` symlinks `~/.gitconfig`, `~/.zshrc` etc. from it into `$HOME`, so editing those files in a running workspace modifies the checkout. On every start (and via **Refresh Dotfiles**) it is hard-reset to its upstream branch and untracked files are cleaned before `coder dotfiles` re-applies it, so it can never get stuck dirty and dotfiles always reflect the repo — local changes to it are discarded, never applied, so make dotfile changes in the dotfiles repo (github.com/TomGrozev/dots), not in a workspace.
+
 ### Using a private image registry
 
 Add an `image_pull_secrets` block to the container spec and create the corresponding Kubernetes secret in the workspace namespace:
@@ -187,6 +190,10 @@ For Elixir workspaces, the startup script runs `mix local.hex --force` on first 
 ### Start ompweb / Start opencode reports it's already running
 
 + The buttons are idempotent and exit early when their health endpoint is reachable. If that's wrong (the process is dead but the port is still held), stop it and start fresh. For **ompweb**, use the **Restart ompweb** button or kill the daemon manually (e.g. `pkill -f '@kahme247/ompweb'`); its agents are child processes and die with the daemon. For **opencode**, stop the pooled session from the miao dashboard (`x`), or run `miao-server daemon stop` to tear the pool down and start fresh.
+
+### Dotfiles did not update
+
+The apply log lives at `/home/dev/.dotfiles.log`. The dotfiles checkout is at `/home/dev/.config/coderv2/dotfiles`. If the log shows a clone/pull error, check that the workspace has network access and that `dotfiles_uri` is reachable.
 
 ## Languages
 
