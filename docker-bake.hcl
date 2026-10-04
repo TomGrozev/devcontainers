@@ -77,6 +77,10 @@ variable "MIAO_VERSION" {
 variable "GIT_GRAPH_VERSION" {
   default = "0.8.0-3"
 }
+// renovate: datasource=github-releases depName=terrastruct/d2 extractVersion=^v(?<version>.+)$
+variable "D2_VERSION" {
+  default = "0.9.0"
+}
 
 // renovate: datasource=rust-version depName=rust
 variable "RUST_VERSION" {
@@ -109,6 +113,7 @@ function "common_args" {
     FD_VERSION       = "${FD_VERSION}"
     MIAO_VERSION     = "${MIAO_VERSION}"
     GIT_GRAPH_VERSION = "${GIT_GRAPH_VERSION}"
+    D2_VERSION       = "${D2_VERSION}"
   }
 }
 
