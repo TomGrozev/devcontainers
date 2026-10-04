@@ -29,6 +29,8 @@ ARG FD_VERSION
 ARG MIAO_VERSION
 # renovate: datasource=deb depName=git-graph
 ARG GIT_GRAPH_VERSION
+# renovate: datasource=github-releases depName=terrastruct/d2 extractVersion=^v(?<version>.+)$
+ARG D2_VERSION
 
 FROM debian:${DEBIAN_VERSION}
 
@@ -48,6 +50,7 @@ ARG BUN_VERSION
 ARG FD_VERSION
 ARG MIAO_VERSION
 ARG GIT_GRAPH_VERSION
+ARG D2_VERSION
 ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -229,6 +232,19 @@ RUN case "${TARGETARCH}" in \
     && mv /tmp/fd-v${FD_VERSION}-${FdArch}/fd /usr/local/bin/ \
     && chmod +x /usr/local/bin/fd \
     && rm -rf /tmp/fd*
+
+# Install d2 (diagram scripting language)
+RUN case "${TARGETARCH}" in \
+    amd64|arm64) D2Arch="${TARGETARCH}" ;; \
+    *) echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
+    esac \
+    && curl -fsSL -o /tmp/d2.tar.gz \
+    "https://github.com/terrastruct/d2/releases/download/v${D2_VERSION}/d2-v${D2_VERSION}-linux-${D2Arch}.tar.gz" \
+    && tar -xzf /tmp/d2.tar.gz -C /tmp/ \
+    && mv /tmp/d2-v${D2_VERSION}/bin/d2 /usr/local/bin/ \
+    && chmod +x /usr/local/bin/d2 \
+    && d2 --version \
+    && rm -rf /tmp/d2*
 
 # Git safe directory
 RUN git config --global --add safe.directory '*'
