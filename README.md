@@ -92,16 +92,16 @@ To rebuild images manually: trigger **Actions > Build and Push > Run workflow**.
 | --- | --- |
 | Elixir | 1.20.3 |
 | Erlang/OTP | 28.5.0.5 |
-| Rust | 1.97.1 |
+| Rust | 1.99.0 |
 | Debian | trixie-20260803-slim |
-| Neovim | v0.12.4 |
+| Neovim | v0.12.5 |
 | Node.js (major) | 24 |
-| rtk | v0.45.0 |
-| delta | 0.19.2 |
+| rtk | v0.51.0 |
+| delta | 0.20.1 |
 | ripgrep | 15.2.0 |
 | bat | 0.26.1 |
-| OpenCode | 1.18.15 |
-| omp | 17.3.7 |
+| OpenCode | 1.18.34 |
+| omp | 18.6.1 |
 | git-graph | 0.8.0-3 |
 | d2 | 0.9.0 |
 | yazi | 26.9.1 |
