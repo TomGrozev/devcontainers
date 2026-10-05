@@ -27,6 +27,8 @@ ARG BUN_VERSION
 ARG FD_VERSION
 # renovate: datasource=github-releases depName=hyperlogue/captain-miao extractVersion=^v(?<version>.+)$
 ARG MIAO_VERSION
+# renovate: datasource=github-releases depName=sxyazi/yazi extractVersion=^v(?<version>.+)$
+ARG YAZI_VERSION
 # renovate: datasource=deb depName=git-graph
 ARG GIT_GRAPH_VERSION
 # renovate: datasource=github-releases depName=terrastruct/d2 extractVersion=^v(?<version>.+)$
@@ -49,6 +51,7 @@ ARG ZELLIJ_VERSION
 ARG BUN_VERSION
 ARG FD_VERSION
 ARG MIAO_VERSION
+ARG YAZI_VERSION
 ARG GIT_GRAPH_VERSION
 ARG D2_VERSION
 ARG TARGETARCH
@@ -68,6 +71,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
     less \
+    file \
     git \
     procps \
     sudo \
@@ -232,6 +236,20 @@ RUN case "${TARGETARCH}" in \
     && mv /tmp/fd-v${FD_VERSION}-${FdArch}/fd /usr/local/bin/ \
     && chmod +x /usr/local/bin/fd \
     && rm -rf /tmp/fd*
+
+# Install yazi (terminal file manager) with its `ya` companion CLI
+RUN case "${TARGETARCH}" in \
+    amd64) YaziArch="x86_64-unknown-linux-gnu" ;; \
+    arm64) YaziArch="aarch64-unknown-linux-gnu" ;; \
+    *) echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
+    esac \
+    && curl -fsSL -o /tmp/yazi.zip \
+    "https://github.com/sxyazi/yazi/releases/download/v${YAZI_VERSION}/yazi-${YaziArch}.zip" \
+    && unzip -o /tmp/yazi.zip -d /tmp/ \
+    && mv /tmp/yazi-${YaziArch}/yazi /tmp/yazi-${YaziArch}/ya /usr/local/bin/ \
+    && chmod +x /usr/local/bin/yazi /usr/local/bin/ya \
+    && yazi --version \
+    && rm -rf /tmp/yazi*
 
 # Install d2 (diagram scripting language)
 RUN case "${TARGETARCH}" in \
