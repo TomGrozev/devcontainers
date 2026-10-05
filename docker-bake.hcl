@@ -73,6 +73,10 @@ variable "FD_VERSION" {
 variable "MIAO_VERSION" {
   default = "0.11.0"
 }
+// renovate: datasource=github-releases depName=sxyazi/yazi extractVersion=^v(?<version>.+)$
+variable "YAZI_VERSION" {
+  default = "26.9.1"
+}
 // renovate: datasource=deb depName=git-graph
 variable "GIT_GRAPH_VERSION" {
   default = "0.8.0-3"
@@ -112,6 +116,7 @@ function "common_args" {
     ZELLIJ_VERSION   = "${ZELLIJ_VERSION}"
     FD_VERSION       = "${FD_VERSION}"
     MIAO_VERSION     = "${MIAO_VERSION}"
+    YAZI_VERSION     = "${YAZI_VERSION}"
     GIT_GRAPH_VERSION = "${GIT_GRAPH_VERSION}"
     D2_VERSION       = "${D2_VERSION}"
   }

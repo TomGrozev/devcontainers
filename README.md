@@ -19,8 +19,8 @@ All images run as user `dev` (UID/GID 1000), shell `/bin/zsh`, locale `en_AU.UTF
 - Debian trixie-slim
 - Node.js 22 + GitHub CLI
 - Neovim (multi-arch, `/opt/nvim`)
-- rtk, delta, ripgrep, bat, OpenCode, omp, git-graph, d2 (system binaries on PATH)
-- apt packages: build-essential, gcc, g++, git, jq, fzf, zsh, gpg, openssh-client, curl, ca-certificates, procps, sudo, unzip, zoxide, tmux, locales, ffmpeg
+- rtk, delta, ripgrep, bat, OpenCode, omp, git-graph, d2, yazi (system binaries on PATH)
+- apt packages: build-essential, gcc, g++, git, file, jq, fzf, zsh, gpg, openssh-client, curl, ca-certificates, procps, sudo, unzip, zoxide, tmux, locales, ffmpeg
 - Rootless `su`/`sudo` passthrough wrappers
 - User `dev` UID/GID 1000, `/etc/zsh/zshrc` skeleton
 
@@ -104,6 +104,7 @@ To rebuild images manually: trigger **Actions > Build and Push > Run workflow**.
 | omp | 17.3.7 |
 | git-graph | 0.8.0-3 |
 | d2 | 0.9.0 |
+| yazi | 26.9.1 |
 <!-- versions:end -->
 
 *Generated at release time by `scripts/gen-readme-versions.sh`.*
