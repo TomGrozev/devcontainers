@@ -39,7 +39,7 @@ variable "RTK_VERSION" {
 }
 // renovate: datasource=github-releases depName=dandavison/delta extractVersion=^(?<version>.*)$
 variable "DELTA_VERSION" {
-  default = "0.19.2"
+  default = "0.20.1"
 }
 // renovate: datasource=github-releases depName=BurntSushi/ripgrep extractVersion=^(?<version>.*)$
 variable "RIPGREP_VERSION" {
