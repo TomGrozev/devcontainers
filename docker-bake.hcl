@@ -63,7 +63,7 @@ variable "ZELLIJ_VERSION" {
 }
 // renovate: datasource=github-releases depName=oven-sh/bun extractVersion=^bun-v(?<version>.+)$
 variable "BUN_VERSION" {
-  default = "1.4.2"
+  default = "1.4.3"
 }
 // renovate: datasource=github-releases depName=sharkdp/fd extractVersion=^v(?<version>.+)$
 variable "FD_VERSION" {
