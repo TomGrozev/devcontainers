@@ -31,7 +31,7 @@ variable "NODE_MAJOR" {
 }
 // renovate: datasource=github-releases depName=neovim/neovim extractVersion=^(?<version>.*)$
 variable "NVIM_VERSION" {
-  default = "v0.12.5"
+  default = "v0.12.6"
 }
 // renovate: datasource=github-releases depName=rtk-ai/rtk extractVersion=^(?<version>.*)$
 variable "RTK_VERSION" {
