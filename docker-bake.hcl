@@ -55,7 +55,7 @@ variable "OPENCODE_VERSION" {
 }
 // renovate: datasource=github-releases depName=can1357/oh-my-pi extractVersion=^v(?<version>.+)$
 variable "OMP_VERSION" {
-  default = "18.9.2"
+  default = "18.10.3"
 }
 // renovate: datasource=github-releases depName=zellij-org/zellij extractVersion=^v(?<version>.+)$
 variable "ZELLIJ_VERSION" {
@@ -71,7 +71,7 @@ variable "FD_VERSION" {
 }
 // renovate: datasource=github-releases depName=hyperlogue/captain-miao extractVersion=^v(?<version>.+)$
 variable "MIAO_VERSION" {
-  default = "0.12.0"
+  default = "0.13.0"
 }
 // renovate: datasource=github-releases depName=sxyazi/yazi extractVersion=^v(?<version>.+)$
 variable "YAZI_VERSION" {
