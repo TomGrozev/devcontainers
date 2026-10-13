@@ -31,6 +31,12 @@ variable "namespace" {
   description = "Kubernetes namespace for workspace resources."
 }
 
+variable "r3_url" {
+  type        = string
+  default     = "https://r3.theg.house"
+  description = "r3 server URL for workspaces to register as clients of. Leave empty to disable r3 client setup."
+}
+
 # ????????? Parameters ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 data "coder_parameter" "language" {
@@ -233,6 +239,17 @@ resource "coder_agent" "main" {
     GIT_SSH_COMMAND="$GIT_SSH_COMMAND -o StrictHostKeyChecking=accept-new" \
       coder dotfiles "${data.coder_parameter.dotfiles_uri.value}" -y 2>&1 | tee /home/dev/.dotfiles.log || true
 
+    # Register this workspace as an r3 client with the shared API key. Both
+    # vars must be present: R3_URL is empty when r3 client setup is disabled,
+    # and R3_API_KEY is empty until the r3-workspace-credentials Secret
+    # exists. The key goes in on stdin and is never echoed. A failure here
+    # (r3 down, key revoked) only warns — workspace startup must not depend
+    # on r3.
+    if [ -n "$R3_URL" ] && [ -n "$R3_API_KEY" ]; then
+      printf '%s' "$R3_API_KEY" | npx --yes @hyperlogue/r3@latest login --api-key-stdin \
+        || echo "warning: r3 login failed; this workspace will not act as an r3 client" >&2
+    fi
+
     # The ompweb browser UI (kahme247/ompweb) is NOT installed here: it is a
     # standalone Node server (not an omp extension), run via npx by the Start
     # ompweb button as a plain daemon (npm cache lives on the PVC, so it
@@ -407,6 +424,31 @@ resource "kubernetes_deployment_v1" "main" {
           env {
             name  = "GIT_CONFIG_VALUE_0"
             value = "*"
+          }
+
+          # r3 client setup: point the workspace at the r3 server. Omitted
+          # entirely when r3_url is empty, which disables r3 client setup.
+          dynamic "env" {
+            for_each = var.r3_url != "" ? [var.r3_url] : []
+
+            content {
+              name  = "R3_URL"
+              value = env.value
+            }
+          }
+
+          # Shared r3 API key, from a Secret that is minted and sealed after
+          # the r3 server is deployed. optional = true lets workspaces start
+          # before it exists; the startup script then skips r3 login.
+          env {
+            name = "R3_API_KEY"
+            value_from {
+              secret_key_ref {
+                name     = "r3-workspace-credentials"
+                key      = "api-key"
+                optional = true
+              }
+            }
           }
 
           resources {

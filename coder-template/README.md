@@ -30,6 +30,7 @@ Variables are set at template build time (not at workspace creation). They confi
 | ---------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `use_kubeconfig` | bool   | `false` | Controls the `kubernetes` provider `config_path`. Set `true` if the Coder host runs outside the cluster and `~/.kube/config` is present. When `false` the provider uses in-cluster auth. |
 | `namespace`      | string | `dev`   | Kubernetes namespace where the PVC and Deployment are created.                                                                 |
+| `r3_url`         | string | `https://r3.theg.house` | r3 server URL workspaces register as clients of. Leave empty to disable r3 client setup.                                       |
 
 ## Parameters
 
@@ -53,7 +54,7 @@ Parameters are configurable from the Coder UI at workspace creation or (for muta
 | Resource                                  | Purpose                                                                                                                                                                                                                                            |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `coder_agent.main`                        | Registers the Coder agent in the workspace. Works in `/home/dev/workspace`.                                                                                                                                                                        |
-| `coder_agent.main.startup_script`         | Inlines first-time setup: creates `/home/dev/{workspace,.local/bin,.local/share,.config,.ssh}`, sets global git identity if not already configured, runs the language-specific `bootstrap.sh` if present, clones a repo if set, hard-syncs dotfiles to their upstream branch before applying via `coder dotfiles`, and removes the legacy `tau-mirror` omp extension from older PVCs. captain-miao config is dotfiles-owned. |
+| `coder_agent.main.startup_script`         | Inlines first-time setup: creates `/home/dev/{workspace,.local/bin,.local/share,.config,.ssh}`, sets global git identity if not already configured, runs the language-specific `bootstrap.sh` if present, clones a repo if set, hard-syncs dotfiles to their upstream branch before applying via `coder dotfiles`, removes the legacy `tau-mirror` omp extension from older PVCs, and logs the workspace into r3 as a client (non-fatal; skipped when `R3_URL` or `R3_API_KEY` is empty). captain-miao config is dotfiles-owned. |
 | `kubernetes_persistent_volume_claim_v1.home` | Persistent `/home/dev` across workspace restarts. Labelled with Coder workspace, user, and resource metadata.                                                                                                                                  |
 | `kubernetes_deployment_v1.main`           | Runs the container rootless (UID/GID 1000, all capabilities dropped, seccomp `RuntimeDefault`), uses `Recreate` strategy, applies pod anti-affinity, and sets CPU/memory requests and limits from the `cpu`/`memory` parameters.                    |
 | `coder_script.zellij_web`                 | On-start script that runs under `zsh` (so `~/.zshenv` is sourced and its environment — the proper omp environment — is inherited by the daemon), then mints a zellij web login token once (stored on the PVC) and daemonizes `zellij web` on loopback `:8082` for mobile browser access.                        |
@@ -75,6 +76,8 @@ The following environment variables are set in the workspace container:
 | `CODER_AGENT_TOKEN` | `coder_agent.main.token`     | Coder agent authentication (required).                               |
 | `DEVCONTAINER`   | `"true"`                       | Container detection used by dotfiles (e.g. permissive opencode permission tier). |
 | `CODER_CONFIG_DIR` | `/home/dev/.config/coderv2`  | Coder CLI global config dir; `coder dotfiles` keeps its checkout at `<dir>/dotfiles`. |
+| `R3_URL`         | `var.r3_url` (present only when non-empty) | r3 server URL the workspace registers as a client of; omitted entirely when `r3_url` is empty. |
+| `R3_API_KEY`     | Secret `r3-workspace-credentials` (namespace `dev`, key `api-key`) | Shared r3 API key, piped to `r3 login` at startup. The Secret is optional: until it exists the value is empty and the startup login is skipped. |
 
 The agent's working directory is `/home/dev/workspace`.
 
@@ -87,6 +90,14 @@ Both coding agents run server-side so a session started from the laptop keeps ru
 - **Zellij (terminal)** — the **Zellij** app is a full mobile terminal served by zellij web on `:8082`. On first visit, copy the token from the **Zellij token** button (one paste per device, remembered for ~4 weeks).
 
 Everything serving over HTTP binds loopback only and is reached through Coder's authenticated subdomain proxy — nothing is exposed directly on the network.
+
+## r3 client
+
+Every workspace registers itself as a client of the r3 server at `r3_url` (default `https://r3.theg.house`):
+
+- **One shared key.** All workspaces use the same r3 API key, from the `r3-workspace-credentials` Secret (namespace `dev`, key `api-key`). r3 is single-owner, so every key is owner-equivalent; revoking it cuts off all workspaces until a new key is sealed.
+- **SealedSecret.** The Secret is managed in the the-g-house repo as a SealedSecret. It is optional from the workspace's point of view: until it exists, `R3_API_KEY` is empty and the startup r3 login is skipped.
+- **Persistence.** r3 credentials live under `~/.config/r3` on the home PVC, so a workspace stays logged in across restarts.
 
 ## captain-miao config
 
@@ -130,6 +141,7 @@ The `miao` and `miao-server` binaries ship in the image (pinned in `docker-bake.
    - Runs the language-specific `bootstrap.sh` from `/usr/local/share/devcontainer/` if present.
    - Clones the `repo` parameter into `/home/dev/workspace` if set and not already a git repo.
    - Applies dotfiles via `coder dotfiles <dotfiles_uri> -y` (hard-reset to upstream branch first), re-applied on every start.
+   - After the dotfiles step, logs the workspace into r3 as a client with `npx --yes @hyperlogue/r3@latest login --api-key-stdin` (key piped via stdin, never echoed). The step is non-fatal — an r3 outage only prints a warning and never fails startup — and is skipped when `R3_URL` or `R3_API_KEY` is empty.
 6. The `coder_script.zellij_web` script (also on start) mints the zellij web token once and daemonizes the zellij web server — wrapped in `zsh -c` so `~/.zshenv` is sourced and the daemon (and every session it spawns) runs with the user's proper omp environment.
 7. The `coder_app` resources register the dashboard buttons and web-app tiles described above.
 
