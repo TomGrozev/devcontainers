@@ -110,6 +110,35 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get install -y --no-install-recommends nodejs gh \
     && rm -rf /tmp/* /var/tmp/*
 
+# Runtime libraries for the Chromium build omp's browser tool drives (headless
+# shell / Playwright's bundled chromium). Without them the browser binary aborts
+# at startup on a missing shared object. Names are trixie's: the 64-bit time_t
+# transition renamed several of these (`libatk1.0-0t64`, `libcups2t64`,
+# `libasound2t64`, `libatspi2.0-0t64`) — the plain names no longer exist in the
+# archive, so don't "simplify" them back.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    set -e \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0t64 \
+    libatk-bridge2.0-0t64 \
+    libatspi2.0-0t64 \
+    libcups2t64 \
+    libasound2t64 \
+    libdrm2 \
+    libgbm1 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    && rm -rf /tmp/* /var/tmp/*
+
 # Create dev user
 RUN groupadd --gid 1000 dev \
     && useradd --uid 1000 --gid 1000 --shell /bin/zsh --create-home dev \
