@@ -233,7 +233,8 @@ resource "coder_agent" "main" {
 
     # Apply dotfiles synchronously. Inlined here (rather than via the
     # coder/dotfiles module) so anything dotfiles write to ~/.zshenv is
-    # guaranteed to be in place before `opencode serve` starts below.
+    # guaranteed to be in place before the boot scripts below spawn their zsh
+    # shells (zellij web, ompweb), which source it.
     # Always re-applies dotfiles on every workspace start.
     ${local.dotfiles_sync}
     GIT_SSH_COMMAND="$GIT_SSH_COMMAND -o StrictHostKeyChecking=accept-new" \
@@ -566,22 +567,6 @@ resource "coder_script" "ompweb" {
   EOT
 }
 
-resource "coder_app" "opencode" {
-  agent_id     = coder_agent.main.id
-  slug         = "opencode"
-  display_name = "OpenCode"
-  url          = "http://localhost:4096"
-  subdomain    = true
-  share        = "owner"
-  open_in      = "tab"
-
-  healthcheck {
-    url       = "http://localhost:4096/global/health"
-    interval  = 5
-    threshold = 6
-  }
-}
-
 # ompweb: browser UI for the omp coding agent. A standalone Node server running
 # on loopback :30177 (started at boot by coder_script.ompweb as a plain daemon,
 # not a miao pooled session), proxied via subdomain. Healthy only while that
@@ -634,37 +619,6 @@ resource "coder_app" "restart_ompweb" {
     else
       echo "ompweb failed to start — see /tmp/ompweb.log"
     fi
-    sleep 5
-  EOT
-  share        = "owner"
-}
-
-# Start opencode: launches opencode (TUI + server in one process) inside the
-# miao pty pool, binding its server to loopback :4096. The phone's OpenCode web
-# app and a laptop `opencode attach` both hit that same process and session
-# store, so handoff (and permission approvals) work from either device.
-# Uses an absolute /usr/local/bin/miao-server path inside the pooled --cmd
-# (captain-miao's pty pool gives background --cmd children a minimal PATH
-# that omits /usr/local/bin, so a bare `miao-server` lookup there fails) and
-# exports PATH before it runs: `miao-server launch opencode` does its own
-# unconditional find_in_path("opencode") internally with no override, so
-# /usr/local/bin must be on PATH for that lookup too, not just for our exec.
-resource "coder_app" "start_opencode" {
-  agent_id     = coder_agent.main.id
-  slug         = "start-opencode"
-  display_name = "Start opencode"
-  icon         = "/icon/terminal.svg"
-  command      = <<-EOT
-    set -e
-    if curl -sf http://localhost:4096/global/health >/dev/null 2>&1; then
-      echo "opencode is already running — open the OpenCode app."
-      sleep 5
-      exit 0
-    fi
-    miao-server daemon ensure >/dev/null
-    miao-server attach opencode-web --background --dir /home/dev/workspace \
-      --cmd "sh -lc 'cd /home/dev/workspace && export PATH=/usr/local/bin:\$PATH && exec /usr/local/bin/miao-server launch opencode . --hostname 127.0.0.1 --port 4096 --pool-session opencode-web'"
-    echo "opencode started — open the OpenCode app."
     sleep 5
   EOT
   share        = "owner"

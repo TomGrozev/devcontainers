@@ -17,12 +17,11 @@ otp_ver=$(echo "$json" | jq -r '.target.elixir.args.OTP_VERSION // "?"')
 debian=$(echo "$json" | jq -r '.target.elixir.args.DEBIAN_VERSION // "?"')
 rust_ver=$(echo "$json" | jq -r '.target.rust.args.RUST_VERSION // "?"')
 nvim=$(echo "$json" | jq -r '.target.elixir.args.NVIM_VERSION // "?"')
-node=$(echo "$json" | jq -r '.target.elixir.args.NODE_MAJOR // "?"')
+npm=$(echo "$json" | jq -r '.target.elixir.args.NPM_VERSION // "?"')
 rtk=$(echo "$json" | jq -r '.target.elixir.args.RTK_VERSION // "?"')
 delta=$(echo "$json" | jq -r '.target.elixir.args.DELTA_VERSION // "?"')
 ripgrep=$(echo "$json" | jq -r '.target.elixir.args.RIPGREP_VERSION // "?"')
 bat=$(echo "$json" | jq -r '.target.elixir.args.BAT_VERSION // "?"')
-opencode=$(echo "$json" | jq -r '.target.elixir.args.OPENCODE_VERSION // "?"')
 omp=$(echo "$json" | jq -r '.target.elixir.args.OMP_VERSION // "?"')
 gitgraph=$(echo "$json" | jq -r '.target.elixir.args.GIT_GRAPH_VERSION // "?"')
 d2=$(echo "$json" | jq -r '.target.elixir.args.D2_VERSION // "?"')
@@ -35,12 +34,11 @@ table="| Component | Version |
 | Rust | ${rust_ver} |
 | Debian | ${debian} |
 | Neovim | ${nvim} |
-| Node.js (major) | ${node} |
+| npm | ${npm} |
 | rtk | ${rtk} |
 | delta | ${delta} |
 | ripgrep | ${ripgrep} |
 | bat | ${bat} |
-| OpenCode | ${opencode} |
 | omp | ${omp} |
 | git-graph | ${gitgraph} |
 | d2 | ${d2} |

@@ -26,9 +26,6 @@ variable "DEBIAN_VERSION" {
 variable "TZ" {
   default = "Australia/Sydney"
 }
-variable "NODE_MAJOR" {
-  default = "24"
-}
 // renovate: datasource=github-releases depName=neovim/neovim extractVersion=^(?<version>.*)$
 variable "NVIM_VERSION" {
   default = "v0.12.6"
@@ -49,10 +46,6 @@ variable "RIPGREP_VERSION" {
 variable "BAT_VERSION" {
   default = "0.26.1"
 }
-// renovate: datasource=github-releases depName=anomalyco/opencode extractVersion=^v(?<version>.+)$
-variable "OPENCODE_VERSION" {
-  default = "1.19.2"
-}
 // renovate: datasource=github-releases depName=can1357/oh-my-pi extractVersion=^v(?<version>.+)$
 variable "OMP_VERSION" {
   default = "18.11.1"
@@ -64,6 +57,10 @@ variable "ZELLIJ_VERSION" {
 // renovate: datasource=github-releases depName=oven-sh/bun extractVersion=^bun-v(?<version>.+)$
 variable "BUN_VERSION" {
   default = "1.4.3"
+}
+// renovate: datasource=npm depName=npm
+variable "NPM_VERSION" {
+  default = "11.19.0"
 }
 // renovate: datasource=github-releases depName=sharkdp/fd extractVersion=^v(?<version>.+)$
 variable "FD_VERSION" {
@@ -104,15 +101,14 @@ function "common_args" {
   result = {
     DEBIAN_VERSION   = "${DEBIAN_VERSION}"
     TZ               = "${TZ}"
-    NODE_MAJOR       = "${NODE_MAJOR}"
     NVIM_VERSION     = "${NVIM_VERSION}"
     RTK_VERSION      = "${RTK_VERSION}"
     DELTA_VERSION    = "${DELTA_VERSION}"
     RIPGREP_VERSION  = "${RIPGREP_VERSION}"
     BAT_VERSION      = "${BAT_VERSION}"
-    OPENCODE_VERSION = "${OPENCODE_VERSION}"
     OMP_VERSION      = "${OMP_VERSION}"
     BUN_VERSION      = "${BUN_VERSION}"
+    NPM_VERSION      = "${NPM_VERSION}"
     ZELLIJ_VERSION   = "${ZELLIJ_VERSION}"
     FD_VERSION       = "${FD_VERSION}"
     MIAO_VERSION     = "${MIAO_VERSION}"

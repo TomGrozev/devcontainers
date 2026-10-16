@@ -17,10 +17,10 @@ All images run as user `dev` (UID/GID 1000), shell `/bin/zsh`, locale `en_AU.UTF
 ## Shared Base (`devcontainer-base`)
 
 - Debian trixie-slim
-- Node.js 22 + GitHub CLI
+- `node` (Bun via a thin wrapper) + npm/npx standalone + GitHub CLI
 - Neovim (multi-arch, `/opt/nvim`)
-- rtk, delta, ripgrep, bat, OpenCode, omp, git-graph, d2, yazi (system binaries on PATH)
-- apt packages: build-essential, gcc, g++, git, file, jq, fzf, zsh, gpg, openssh-client, curl, ca-certificates, procps, sudo, unzip, zoxide, tmux, locales, ffmpeg
+- rtk, delta, ripgrep, bat, omp, git-graph, d2, yazi (system binaries on PATH)
+- apt packages: build-essential, gcc, g++, git, file, jq, fzf, zsh, gpg, openssh-client, curl, ca-certificates, procps, sudo, unzip, zoxide, tmux, locales
 - Chromium runtime libraries so `omp`'s browser tool can launch its bundled browser (NSS/NSPR, ATK, AT-SPI, CUPS, ALSA, Mesa/GBM, X11, Pango, Cairo)
 - Rootless `su`/`sudo` passthrough wrappers
 - User `dev` UID/GID 1000, `/etc/zsh/zshrc` skeleton
@@ -40,7 +40,6 @@ All images run as user `dev` (UID/GID 1000), shell `/bin/zsh`, locale `en_AU.UTF
 
 ## What's Deferred
 
-- **opencode** — installed at first workspace start by the `coder-labs/opencode` module
 - **zsh + oh-my-zsh + powerlevel10k + fzf** — applied via dotfiles
 - **asdf** — managed by dotfiles
 - **Language-specific bootstraps** — run once on first workspace start via `/usr/local/share/devcontainer/bootstrap.sh`
@@ -82,7 +81,7 @@ Each image has a **train tag** (`vX.Y.Z`) — immutable, guarantees all three im
 
 ## Usage
 
-The Coder Terraform template in `./coder-template/` deploys the selected image as a rootless Kubernetes pod with a persistent home PVC, dotfiles, and opencode. See `coder-template/README.md` for setup instructions including the OpenCode user-secret one-liner.
+The Coder Terraform template in `./coder-template/` deploys the selected image as a rootless Kubernetes pod with a persistent home PVC and dotfiles. See `coder-template/README.md` for setup instructions.
 
 To rebuild images manually: trigger **Actions > Build and Push > Run workflow**. The workflow builds `linux/amd64` + `linux/arm64` and pushes all three images to GHCR.
 
@@ -96,12 +95,11 @@ To rebuild images manually: trigger **Actions > Build and Push > Run workflow**.
 | Rust | 1.97.1 |
 | Debian | trixie-20260803-slim |
 | Neovim | v0.12.4 |
-| Node.js (major) | 24 |
+| npm | 11.19.0 |
 | rtk | v0.45.0 |
 | delta | 0.19.2 |
 | ripgrep | 15.2.0 |
 | bat | 0.26.1 |
-| OpenCode | 1.18.15 |
 | omp | 17.3.7 |
 | git-graph | 0.8.0-3 |
 | d2 | 0.9.0 |

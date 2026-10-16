@@ -75,7 +75,7 @@ jobs:
           old_bake="$(git show "${last_tag}:docker-bake.hcl" 2>/dev/null || echo "{}")"
 
           has_major=0
-          for dep in NVIM_VERSION RTK_VERSION DELTA_VERSION RIPGREP_VERSION BAT_VERSION OPENCODE_VERSION RUST_VERSION; do
+          for dep in NVIM_VERSION RTK_VERSION DELTA_VERSION RIPGREP_VERSION BAT_VERSION NPM_VERSION RUST_VERSION; do
             new_ver="$(echo "$bake_json" | jq -r ".target.elixir.args.${dep} // .target.rust.args.${dep} // \"\"")"
             old_ver="$(echo "$old_bake" | grep -oP "${dep}\s*=\s*\"[^\"]*\"|${dep}\s*default\s*=\s*\"[^\"]*\"" | grep -oP '"[^"]*"' | tr -d '"' | head -1 || echo "")"
             [[ -z "$new_ver" || -z "$old_ver" ]] && continue

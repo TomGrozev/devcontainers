@@ -32,7 +32,8 @@ jobs:
           docker run --rm ghcr.io/tomgrozev/devcontainer-base:latest bat --version
           docker run --rm ghcr.io/tomgrozev/devcontainer-base:latest delta --version
           docker run --rm ghcr.io/tomgrozev/devcontainer-base:latest rtk --version
-          docker run --rm ghcr.io/tomgrozev/devcontainer-base:latest opencode --version
+          docker run --rm ghcr.io/tomgrozev/devcontainer-base:latest node --version
+          docker run --rm ghcr.io/tomgrozev/devcontainer-base:latest npm --version
           echo "=== All shared binaries resolved ==="
 
       - name: Smoke test — user + sudo/su wrappers
