@@ -35,7 +35,7 @@ variable "NVIM_VERSION" {
 }
 // renovate: datasource=github-releases depName=rtk-ai/rtk extractVersion=^(?<version>.*)$
 variable "RTK_VERSION" {
-  default = "v0.52.0"
+  default = "v1.0.1"
 }
 // renovate: datasource=github-releases depName=dandavison/delta extractVersion=^(?<version>.*)$
 variable "DELTA_VERSION" {
