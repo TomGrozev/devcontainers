@@ -78,3 +78,67 @@ jobs:
           docker run --rm ghcr.io/tomgrozev/devcontainer-rust:latest cargo -V
           docker run --rm ghcr.io/tomgrozev/devcontainer-rust:latest cargo new /tmp/smoke-test && cd /tmp/smoke-test && cargo b && cd / && rm -rf /tmp/smoke-test
           echo "=== Rust toolchain verified ==="
+
+      - name: Build Elixir agent image (single arch, load into Docker)
+        uses: docker/bake-action@v7
+        with:
+          source: .
+          targets: agent-elixir
+          set: |
+            *.platform=linux/amd64
+          load: true
+
+      - name: Smoke test — Kelos agent interface (Elixir)
+        run: |
+          set -e
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest sh -c 'test "$(id -u)" = 61100'
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test -x /kelos_entrypoint.sh
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest omp --version
+          # The image is dotfiles-agnostic: the dots arrive from DOTFILES_URI at
+          # pod start, and the dotfiles' own installer provides the shared skills
+          # and the omp plugins, so none of that may be baked in.
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test ! -e /home/agent/.omp/agent/skills/implement
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test ! -e /home/agent/.omp/agent/extensions
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest sh -c 'for s in tdd code-review conventional-commit; do test ! -e "/home/agent/.agents/skills/$s"; done'
+          # A task that forgets DOTFILES_URI must fail loudly, not run a bare agent.
+          if docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest /kelos_entrypoint.sh > /tmp/dots-check.log 2>&1; then
+            echo "entrypoint exited 0 without DOTFILES_URI"
+            exit 1
+          fi
+          grep -q DOTFILES_URI /tmp/dots-check.log
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test -e /etc/omp/agent-image/APPEND_SYSTEM.md
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest sh -c 'omp read skill://r3 2>&1 | grep -q "Unknown skill"'
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test ! -e /home/agent/.omp/plugins/node_modules/@aliou/pi-neuralwatt
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest omp config get modelRoles | grep -q '"slow":"neuralwatt/'
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest omp config get memory.backend | grep -qx 'off'
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest omp config get tools.approval | grep -q '"commit_as_me":"deny"'
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest omp config get tools.approvalMode | grep -qx 'yolo'
+          # MIX_HOME and HEX_HOME point under /home/dev, which the language image
+          # creates owned by dev (1000) at mode 0700 — the agent UID must own it or
+          # mix cannot install an archive there.
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest sh -c 'mkdir -p "$MIX_HOME/archives" "$HEX_HOME"'
+          echo "=== Kelos agent interface verified ==="
+
+      - name: Build Rust agent image (single arch, load into Docker)
+        uses: docker/bake-action@v7
+        with:
+          source: .
+          targets: agent-rust
+          set: |
+            *.platform=linux/amd64
+          load: true
+
+      # The agent Dockerfile is shared, so this only proves the second language
+      # layer (Rust) plus the agent layer's presence.
+      - name: Smoke test — Rust agent interface
+        run: |
+          set -e
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest sh -c 'test "$(id -u)" = 61100'
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest test -x /kelos_entrypoint.sh
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest omp --version
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest rustc -V
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest omp config get memory.backend | grep -qx 'off'
+          # CARGO_HOME points under /home/dev (see the Elixir step): cargo creates
+          # its registry cache there, so the agent UID must own it.
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest sh -c 'mkdir -p "$CARGO_HOME/registry/cache"'
+          echo "=== Rust agent interface verified ==="

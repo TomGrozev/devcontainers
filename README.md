@@ -11,8 +11,10 @@ Prebuilt multi-arch Docker images for Coder workspaces, published to GHCR. Each 
 | `devcontainer-base` | — | System tools, CLI utilities, user setup |
 | `devcontainer-elixir` | Elixir | Base + Erlang/OTP + Elixir + mix/hex |
 | `devcontainer-rust` | Rust | Base + Rust (rustup) + cargo |
+| `devcontainer-agent-elixir` | omp | Elixir (layers on `devcontainer-elixir`) + omp headless config, Kelos entrypoint; dotfiles (skills, plugins) applied at pod start |
+| `devcontainer-agent-rust` | omp | Rust (layers on `devcontainer-rust`) + omp headless config, Kelos entrypoint; dotfiles (skills, plugins) applied at pod start |
 
-All images run as user `dev` (UID/GID 1000), shell `/bin/zsh`, locale `en_AU.UTF-8`.
+All images except the agent images run as user `dev` (UID/GID 1000), shell `/bin/zsh`, locale `en_AU.UTF-8`. The agent images (`devcontainer-agent-elixir`, `devcontainer-agent-rust`) run as user `agent` (UID/GID 61100).
 
 ## Shared Base (`devcontainer-base`)
 
@@ -38,6 +40,20 @@ All images run as user `dev` (UID/GID 1000), shell `/bin/zsh`, locale `en_AU.UTF
 - `pkg-config` and `libssl-dev` for `openssl-sys` crates
 - `RUSTUP_HOME` and `CARGO_HOME` split for PVC compatibility
 
+## Agent (`devcontainer-agent-elixir`, `devcontainer-agent-rust`)
+
+An unattended omp agent, built to run as a [Kelos](https://github.com/kelos-dev/kelos) task pod rather than as an interactive workspace. Kelos clones the repo, then runs the container command; nothing here is driven by a human at a terminal.
+
+The agent layer is language-independent: one Dockerfile, one headless config overlay, one Kelos entrypoint, shared by the family. The only thing that differs per image is the language layer underneath — `devcontainer-agent-elixir` layers on `devcontainer-elixir`, `devcontainer-agent-rust` on `devcontainer-rust`. Adding a language is a new bake target that inherits the existing agent target plus one `contexts.base` line pointing at the language image. A repo whose language has no matching agent image can still use one and install its toolchain through the Kelos `KELOS_SETUP_COMMAND`.
+
+- Layers on the language image (omp itself comes from the shared base)
+- Runs as user `agent`, **UID/GID 61100** — Kelos's `AgentUID`. Kelos sets `RunAsUser: 61100` on the `git-clone` init container and `FSGroup: 61100` on the pod, but not on the agent container, so the image's own `USER 61100` is what makes the agent process match the workspace's owner.
+- Ships `/kelos_entrypoint.sh` (mode 0755) — Kelos sets the container command to that exact path with the task prompt as `$1`, overriding any `ENTRYPOINT` in the image. It reads `DOTFILES_URI`, `DOTFILES_REF`, `KELOS_SETUP_COMMAND`, `NEURALWATT_API_KEY_FILE`, `GIT_BOT_NAME`, `GIT_BOT_EMAIL`, `GIT_BOT_SIGNING_KEY_FILE`, `GIT_BOT_TOKEN_FILE` (or `KELOS_GITHUB_TOKEN_FILE`), `OMP_SKILL`, and `OMP_MAX_TIME`; see the script header for the contract each one carries.
+- Headless omp config overlay at `/etc/omp/agent-image/agent.yml`, wired in through `PI_CONFIG_FILES` (omp's platform path-list of overlays, loaded before any `--config`)
+- Dotfiles-agnostic: no dotfiles repo is baked in. The entrypoint clones `DOTFILES_URI` (required) at `DOTFILES_REF` (optional; the remote's default branch when unset) into `$HOME/dotfiles` at pod start and runs its own `install.sh` with `AGENT_POD=true` — the agent-pod mode that skips the shell and tool installs. That installer, not the image, provides the `.omp` instructions, rules, config, subagents, extensions, the `implement`/`walkthrough`/`land` skills, and `pairing-workflow.html`; the `cc-safety-net` policy; the omp plugins (`cc-safety-net` and the NeuralWatt provider); and the `tdd`, `code-review` and `conventional-commit` skills under `~/.agents/skills`. The entrypoint exits non-zero naming `DOTFILES_URI` when it is unset, and names the installer as the cause when it fails, so a task that forgets it — or a layout change — fails loudly instead of running as a bare agent.
+- `/home/agent/.local/bin` is pre-created, agent-owned, and first on `PATH`, so a workspace `setupCommand` can install tools the agent then resolves by name
+- `OMP_MCP_REQUIRE_READY=1`, so print mode exits 1 if a configured MCP server is still pending or has failed, rather than running the turn without it
+
 ## What's Deferred
 
 - **zsh + oh-my-zsh + powerlevel10k + fzf** — applied via dotfiles
@@ -46,7 +62,7 @@ All images run as user `dev` (UID/GID 1000), shell `/bin/zsh`, locale `en_AU.UTF
 
 ## Tags
 
-Each image has a **train tag** (`vX.Y.Z`) — immutable, guarantees all three images share the same base layers from the same build run. **Toolchain tags** are moving and describe what's inside.
+Each image has a **train tag** (`vX.Y.Z`) — immutable, guarantees all five images share the same base layers from the same build run. **Toolchain tags** are moving and describe what's inside.
 
 ### `devcontainer-base`
 
@@ -79,11 +95,33 @@ Each image has a **train tag** (`vX.Y.Z`) — immutable, guarantees all three im
 | `rust-X.Y.Z` | no | This exact toolchain |
 | `vX.Y.Z-rust-X.Y.Z` | yes | Fully pinned + self-describing |
 
+### `devcontainer-agent-elixir`
+
+| Tag | Immutable | Answers |
+| --- |:---:| --- |
+| `latest` | no | Newest agent image |
+| `vX.Y.Z` | yes | Same train as base + Elixir |
+| `sha-<short>` | yes | Which commit built this |
+| `omp-X.Y` | no | Latest patches on this omp minor |
+| `omp-X.Y.Z` | no | This exact omp version |
+| `vX.Y.Z-omp-X.Y.Z` | yes | Fully pinned + self-describing |
+
+### `devcontainer-agent-rust`
+
+| Tag | Immutable | Answers |
+| --- |:---:| --- |
+| `latest` | no | Newest agent image |
+| `vX.Y.Z` | yes | Same train as base + Rust |
+| `sha-<short>` | yes | Which commit built this |
+| `omp-X.Y` | no | Latest patches on this omp minor |
+| `omp-X.Y.Z` | no | This exact omp version |
+| `vX.Y.Z-omp-X.Y.Z` | yes | Fully pinned + self-describing |
+
 ## Usage
 
 The Coder Terraform template in `./coder-template/` deploys the selected image as a rootless Kubernetes pod with a persistent home PVC and dotfiles. See `coder-template/README.md` for setup instructions.
 
-To rebuild images manually: trigger **Actions > Build and Push > Run workflow**. The workflow builds `linux/amd64` + `linux/arm64` and pushes all three images to GHCR.
+To rebuild images manually: trigger **Actions > Build and Push > Run workflow**. The workflow builds `linux/amd64` + `linux/arm64` and pushes all five images to GHCR.
 
 ## Versions
 
