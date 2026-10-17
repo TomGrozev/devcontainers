@@ -32,7 +32,7 @@ variable "NVIM_VERSION" {
 }
 // renovate: datasource=github-releases depName=rtk-ai/rtk extractVersion=^(?<version>.*)$
 variable "RTK_VERSION" {
-  default = "v0.52.0"
+  default = "v1.0.1"
 }
 // renovate: datasource=github-releases depName=dandavison/delta extractVersion=^(?<version>.*)$
 variable "DELTA_VERSION" {
@@ -48,7 +48,7 @@ variable "BAT_VERSION" {
 }
 // renovate: datasource=github-releases depName=can1357/oh-my-pi extractVersion=^v(?<version>.+)$
 variable "OMP_VERSION" {
-  default = "18.11.1"
+  default = "18.11.3"
 }
 // renovate: datasource=github-releases depName=zellij-org/zellij extractVersion=^v(?<version>.+)$
 variable "ZELLIJ_VERSION" {
