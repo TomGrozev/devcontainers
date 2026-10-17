@@ -23,7 +23,7 @@ log() { printf '%s\n' "$*" >&2; }
 # clone lives at $HOME/dotfiles rather than a temp dir because the installer links
 # ~/.omp/agent/* back into it, so it has to outlive this step. AGENT_POD=true
 # selects the installer's agent-pod mode, which skips the shell and tool installs
-# (zsh/oh-my-zsh/p10k, captain-miao, codebase-memory-mcp, …) that only make sense
+# (zsh/oh-my-zsh/p10k, captain-miao, …) that only make sense
 # in an interactive workspace. DOTFILES_URI is required and checked first: an
 # unset value must fail deterministically, before the clone below and before
 # every other step, instead of leaving a bare agent to run. DOTFILES_REF picks
@@ -111,77 +111,21 @@ if [ -n "${KELOS_SETUP_COMMAND:-}" ]; then
   log '---KELOS_SETUP_COMMAND_DONE---'
 fi
 
-# --- 4. NeuralWatt API key -----------------------------------------------------
-# The NeuralWatt provider is an omp plugin and reads its key straight from the
-# NEURALWATT_API_KEY environment variable, so no `providers:` block is needed in
-# config. The key arrives as a file (a mounted Secret) and never as env in the
-# pod spec.
-if [ -n "${NEURALWATT_API_KEY_FILE:-}" ]; then
-  if [ ! -r "$NEURALWATT_API_KEY_FILE" ]; then
-    log "NEURALWATT_API_KEY_FILE=$NEURALWATT_API_KEY_FILE is not readable"
-    exit 1
+# --- 4. Codebase index ---------------------------------------------------------
+# Index the workspace before the agent starts so codebase-memory-mcp answers
+# graph queries from the first turn instead of the agent spending turns on it.
+# Runs after the setup command so generated sources are included. The binary
+# comes from the dotfiles installer (installed in AGENT_POD mode too). A failed
+# index degrades the agent to grep/read rather than breaking it, so it warns.
+if [ -d /workspace/repo ]; then
+  if codebase-memory-mcp cli index_repository '{"repo_path":"/workspace/repo"}' >&2; then
+    log 'codebase-memory-mcp: /workspace/repo indexed'
+  else
+    log 'WARNING: codebase-memory-mcp indexing failed; the agent starts without a graph'
   fi
-  NEURALWATT_API_KEY="$(cat "$NEURALWATT_API_KEY_FILE")"
-  export NEURALWATT_API_KEY
 fi
 
-# --- 5. Git bot identity -------------------------------------------------------
-# The git-bot-identity extension's config directory is HARDCODED to
-# $HOME/.config/git-bot-identity: `CONFIG_DIR` in lib/config.ts, consumed by
-# index.ts as `credsDir = options.credsDir ?? CONFIG_DIR`. GIT_BOT_CONFIG_DIR is
-# read only by lib/env.ts:botConfigDir() — it feeds GNUPGHOME, GIT_CONFIG_GLOBAL,
-# core.hooksPath and the per-pid shim directories, and exists so tests can
-# redirect the scaffold. Pointing it anywhere other than the default would
-# desynchronise the config.json written here from the scaffold the extension
-# builds around it. So: write to the default path, and never set
-# GIT_BOT_CONFIG_DIR. Kubernetes mounts a writable emptyDir over that path
-# instead, which is how the bot secret stays out of the image layer.
-BOT_DIR="$HOME/.config/git-bot-identity"
-
-if [ -n "${GIT_BOT_NAME:-}" ] && [ -n "${GIT_BOT_EMAIL:-}" ]; then
-  if [ -z "${GIT_BOT_SIGNING_KEY_FILE:-}" ] || [ ! -r "${GIT_BOT_SIGNING_KEY_FILE:-}" ]; then
-    log "GIT_BOT_NAME/GIT_BOT_EMAIL are set but GIT_BOT_SIGNING_KEY_FILE ('${GIT_BOT_SIGNING_KEY_FILE:-<unset>}') is missing or unreadable."
-    log 'Refusing to run: the extension would generate a throwaway signing key, and none of the commits it makes would ever show as Verified.'
-    exit 1
-  fi
-
-  # Read the token fresh from the kubelet-synced file rather than capturing
-  # $GITHUB_TOKEN, whose value freezes at pod start and expires mid-run.
-  token_file="${GIT_BOT_TOKEN_FILE:-${KELOS_GITHUB_TOKEN_FILE:-}}"
-  if [ -z "$token_file" ] || [ ! -r "$token_file" ]; then
-    log 'Bot mode needs a GitHub token: neither GIT_BOT_TOKEN_FILE nor KELOS_GITHUB_TOKEN_FILE names a readable file.'
-    exit 1
-  fi
-
-  install -d -m 0700 "$BOT_DIR"
-  # Keep the armored secret inside the same writable dir the extension owns, so
-  # signingKeyFile points at a path that survives the mounted Secret being
-  # unmounted, and the extension imports it into <dir>/gnupg on first write.
-  install -m 0600 "$GIT_BOT_SIGNING_KEY_FILE" "$BOT_DIR/signing-key.asc"
-
-  # Built with jq -n so the token (and any other value) is JSON-escaped by jq
-  # rather than interpolated by hand. humanName/humanNoreply are optional: the
-  # extension falls back to `git config user.name`/`user.email` when absent.
-  bot_token="$(cat "$token_file")"
-  config_json="$(jq -n \
-    --arg name "$GIT_BOT_NAME" \
-    --arg email "$GIT_BOT_EMAIL" \
-    --arg token "$bot_token" \
-    --arg signingKeyFile "$BOT_DIR/signing-key.asc" \
-    --arg humanName "${GIT_BOT_HUMAN_NAME:-}" \
-    --arg humanNoreply "${GIT_BOT_HUMAN_NOREPLY:-}" \
-    '{name: $name, email: $email, token: $token, signingKeyFile: $signingKeyFile}
-     + (if $humanName    != "" then {humanName: $humanName}       else {} end)
-     + (if $humanNoreply != "" then {humanNoreply: $humanNoreply} else {} end)')"
-  ( umask 077; printf '%s\n' "$config_json" > "$BOT_DIR/config.json" )
-  chmod 0600 "$BOT_DIR/config.json"
-  log "git-bot-identity configured for $GIT_BOT_NAME <$GIT_BOT_EMAIL>"
-else
-  log 'WARNING: GIT_BOT_NAME/GIT_BOT_EMAIL are unset — no bot identity is configured.'
-  log 'WARNING: commits will not be authored or signed as the bot, and write-class git/gh calls through the extension will fail closed.'
-fi
-
-# --- 6. Session setup only -----------------------------------------------------
+# --- 5. Session setup only -----------------------------------------------------
 # Kelos' Session runtime calls this entrypoint with KELOS_SESSION_SETUP_ONLY=1 and
 # no prompt: prepare the environment (done above) and exit without starting a
 # provider. This image is used for Tasks, but the contract says to honour it.
@@ -190,7 +134,7 @@ if [ "${KELOS_SESSION_SETUP_ONLY:-}" = "1" ]; then
   exit 0
 fi
 
-# --- 7. Run the agent ----------------------------------------------------------
+# --- 6. Run the agent ----------------------------------------------------------
 # Print mode (`-p`) is the only headless route: there is no `omp run` or
 # `omp implement` subcommand. The prompt is passed positionally; a non-TTY stdin
 # would also be read to EOF as prompt text, but argv is the documented form.
@@ -208,13 +152,13 @@ ${1:-}"
 #
 # No `exec` — Kelos requires the entrypoint to survive the agent so it can emit
 # the output block afterwards — and no pipe, because we are not routing the
-# agent's stdout through /kelos/kelos-capture (see step 8).
+# agent's stdout through /kelos/kelos-capture (see step 7).
 omp -p --no-title --max-time "${OMP_MAX_TIME:-45m}" \
   --append-system-prompt /etc/omp/agent-image/APPEND_SYSTEM.md \
   "$prompt"
 AGENT_EXIT_CODE=$?
 
-# --- 8. Emit Kelos outputs -----------------------------------------------------
+# --- 7. Emit Kelos outputs -----------------------------------------------------
 # /kelos/kelos-capture is not published as a standalone artifact, so this image
 # takes option 2 from the interface doc and emits the markers itself. The
 # controller reads pod logs and extracts the lines between them; each line is
@@ -236,5 +180,5 @@ if [ -n "$branch" ] && [ "$branch" != "HEAD" ]; then
   printf -- '---KELOS_OUTPUTS_END---\n'
 fi
 
-# --- 9. Propagate the agent's exit code ----------------------------------------
+# --- 8. Propagate the agent's exit code ----------------------------------------
 exit "$AGENT_EXIT_CODE"

@@ -23,15 +23,6 @@ memory:
 autolearn:
   enabled: false
 
-# --- No project-level MCP ------------------------------------------------------
-# There is no global MCP kill switch. `enableProjectConfig: false` excludes every
-# project-level source before dedup, so a cloned repository cannot contribute an
-# MCP server — and its `stdio` entries would run arbitrary commands. The image
-# ships no mcp.json at all, and the Dockerfile sets OMP_MCP_REQUIRE_READY=1 so a
-# print-mode run exits 1 rather than starting without a configured server.
-mcp:
-  enableProjectConfig: false
-
 # --- Model roles ---------------------------------------------------------------
 # Only the four roles the base config points at anthropic/claude-opus-5-5 are
 # remapped; the Anthropic models are unavailable in this image (no Anthropic

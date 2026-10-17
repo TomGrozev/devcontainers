@@ -44,9 +44,8 @@ ENV PI_CONFIG_FILES=/etc/omp/agent-image/agent.yml
 
 # Print mode exits 1 if a configured MCP server is still pending or has failed,
 # rather than running the first turn without it (OMP_MCP_REQUIRE_READY, and
-# "Headless/SDK" in mcp-runtime-lifecycle.md). No server ships in this image —
-# the overlay blocks project-level ones — so this is here to make one added later
-# fail loudly instead of silently going missing.
+# "Headless/SDK" in mcp-runtime-lifecycle.md), so a missing server fails loudly
+# instead of silently going missing.
 ENV OMP_MCP_REQUIRE_READY=1
 
 # Kelos runs this exact path with the task prompt as $1, overriding ENTRYPOINT.
