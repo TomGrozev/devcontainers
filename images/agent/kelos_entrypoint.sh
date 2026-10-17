@@ -65,7 +65,7 @@ for skill in implement walkthrough land; do
 done
 [ -f "$HOME/.cc-safety-net/policy.json" ] \
   || { log "dotfiles install.sh did not produce $HOME/.cc-safety-net/policy.json"; exit 1; }
-for skill in tdd code-review conventional-commit; do
+for skill in tdd code-review conventional-commit frontend-design apple-design; do
   [ -d "$HOME/.agents/skills/$skill" ] || { log "dotfiles install.sh did not produce $HOME/.agents/skills/$skill"; exit 1; }
 done
 # The NeuralWatt provider is an omp plugin, and the installer's plugin loop is

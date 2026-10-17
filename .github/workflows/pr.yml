@@ -99,7 +99,7 @@ jobs:
           # and the omp plugins, so none of that may be baked in.
           docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test ! -e /home/agent/.omp/agent/skills/implement
           docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test ! -e /home/agent/.omp/agent/extensions
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest sh -c 'for s in tdd code-review conventional-commit; do test ! -e "/home/agent/.agents/skills/$s"; done'
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest sh -c 'for s in tdd code-review conventional-commit frontend-design apple-design; do test ! -e "/home/agent/.agents/skills/$s"; done'
           # A task that forgets DOTFILES_URI must fail loudly, not run a bare agent.
           if docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest /kelos_entrypoint.sh > /tmp/dots-check.log 2>&1; then
             echo "entrypoint exited 0 without DOTFILES_URI"

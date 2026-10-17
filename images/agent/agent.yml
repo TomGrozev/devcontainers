@@ -54,7 +54,7 @@ modelRoles:
 # (after name resolution), and enablePiProject gates the native provider's
 # project skills. Both matter here: the workspace is a cloned untrusted repo, and
 # without enablePiProject: false it could ship a `.omp/skills/<name>/SKILL.md`
-# that shadows one of the six names below and runs with this image's authority.
+# that shadows one of the names below and runs with this image's authority.
 skills:
   includeSkills:
     - implement
@@ -63,6 +63,8 @@ skills:
     - walkthrough
     - land
     - conventional-commit
+    - frontend-design
+    - apple-design
   enablePiProject: false
 
 # --- Discovery providers -------------------------------------------------------
