@@ -94,25 +94,13 @@ jobs:
           docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest sh -c 'test "$(id -u)" = 61100'
           docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test -x /kelos_entrypoint.sh
           docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest omp --version
-          # The image is dotfiles-agnostic: the dots arrive from DOTFILES_URI at
-          # pod start, and the dotfiles' own installer provides the shared skills
-          # and the omp plugins, so none of that may be baked in.
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test ! -e /home/agent/.omp/agent/skills/implement
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test ! -e /home/agent/.omp/agent/extensions
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest sh -c 'for s in tdd code-review conventional-commit frontend-design apple-design; do test ! -e "/home/agent/.agents/skills/$s"; done'
-          # A task that forgets DOTFILES_URI must fail loudly, not run a bare agent.
-          if docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest /kelos_entrypoint.sh > /tmp/dots-check.log 2>&1; then
-            echo "entrypoint exited 0 without DOTFILES_URI"
-            exit 1
-          fi
-          grep -q DOTFILES_URI /tmp/dots-check.log
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test -e /etc/omp/agent-image/APPEND_SYSTEM.md
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest sh -c 'omp read skill://r3 2>&1 | grep -q "Unknown skill"'
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test ! -e /home/agent/.omp/plugins/node_modules/@aliou/pi-neuralwatt
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest omp config get modelRoles | grep -q '"slow":"neuralwatt/'
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest omp config get memory.backend | grep -qx 'off'
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest omp config get tools.approval | grep -q '"commit_as_me":"deny"'
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest omp config get tools.approvalMode | grep -qx 'yolo'
+          # The image is dotfiles-agnostic: it bakes in no omp config and no omp
+          # plugins, and DOTFILES_URI is optional, so an unset value must not be
+          # fatal — the session-setup path prepares the environment and exits 0
+          # without starting the agent.
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test ! -e /home/agent/.omp/agent/config.yml
+          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-elixir:latest test ! -e /home/agent/.omp/plugins
+          docker run --rm -e KELOS_SESSION_SETUP_ONLY=1 ghcr.io/tomgrozev/devcontainer-agent-elixir:latest /kelos_entrypoint.sh
           # MIX_HOME and HEX_HOME point under /home/dev, which the language image
           # creates owned by dev (1000) at mode 0700 — the agent UID must own it or
           # mix cannot install an archive there.
@@ -137,7 +125,6 @@ jobs:
           docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest test -x /kelos_entrypoint.sh
           docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest omp --version
           docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest rustc -V
-          docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest omp config get memory.backend | grep -qx 'off'
           # CARGO_HOME points under /home/dev (see the Elixir step): cargo creates
           # its registry cache there, so the agent UID must own it.
           docker run --rm ghcr.io/tomgrozev/devcontainer-agent-rust:latest sh -c 'mkdir -p "$CARGO_HOME/registry/cache"'

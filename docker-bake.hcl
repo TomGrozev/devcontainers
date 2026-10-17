@@ -217,10 +217,10 @@ target "rust" {
 // ── Agent ──────────────────────────────────────────────────────────────────
 //
 // The agent layer is one Dockerfile over a variable base. Everything it adds —
-// the omp overlay and the Kelos entrypoint — is language-independent, so it
-// layers on whichever language image bake points the `base` context at. Adding a
-// language is a target that inherits `agent-elixir` and overrides
-// `contexts.base`; the Dockerfile never changes.
+// the Kelos entrypoint — is language-independent, so it layers on whichever
+// language image bake points the `base` context at. Adding a language is a target
+// that inherits `agent-elixir` and overrides `contexts.base`; the Dockerfile
+// never changes.
 
 target "agent-elixir" {
   dockerfile  = "images/agent/Dockerfile"

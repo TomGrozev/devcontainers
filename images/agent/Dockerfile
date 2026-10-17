@@ -38,10 +38,6 @@ ENV HOME=/home/agent \
 # mode needs no change — the owner of a 0700 directory can traverse and write it.
 RUN chown -R agent:agent /home/dev
 
-# omp's platform path-list of config overlays; entries load before any --config,
-# so the headless overlay ships this image's unattended defaults.
-ENV PI_CONFIG_FILES=/etc/omp/agent-image/agent.yml
-
 # Print mode exits 1 if a configured MCP server is still pending or has failed,
 # rather than running the first turn without it (OMP_MCP_REQUIRE_READY, and
 # "Headless/SDK" in mcp-runtime-lifecycle.md), so a missing server fails loudly
@@ -50,11 +46,6 @@ ENV OMP_MCP_REQUIRE_READY=1
 
 # Kelos runs this exact path with the task prompt as $1, overriding ENTRYPOINT.
 COPY images/agent/kelos_entrypoint.sh /kelos_entrypoint.sh
-COPY images/agent/agent.yml /etc/omp/agent-image/agent.yml
-# The afk addendum is passed explicitly with --append-system-prompt rather than
-# discovered from ~/.omp/agent/APPEND_SYSTEM.md: an absolute path the entrypoint
-# owns is certain to apply, and one copy of the text means one place to edit.
-COPY images/agent/APPEND_SYSTEM.md /etc/omp/agent-image/APPEND_SYSTEM.md
 RUN chmod 0755 /kelos_entrypoint.sh \
     && chown -R agent:agent /home/agent
 

@@ -16,64 +16,39 @@ set -uo pipefail
 
 log() { printf '%s\n' "$*" >&2; }
 
-# --- 1. Dotfiles ---------------------------------------------------------------
-# The image is agnostic to any particular dotfiles setup, so the dots arrive here
-# at pod start rather than in the image layer: clone DOTFILES_URI into $HOME and
-# run its own install.sh, which links and copies the dotfiles into place. The
+# --- 1. Dotfiles (optional) ----------------------------------------------------
+# The image is agnostic to any particular dotfiles setup, so the dotfiles arrive
+# here at pod start rather than in the image layer: clone DOTFILES_URI into $HOME
+# and run its own install.sh, which links and copies the dotfiles into place. The
 # clone lives at $HOME/dotfiles rather than a temp dir because the installer links
 # ~/.omp/agent/* back into it, so it has to outlive this step. AGENT_POD=true
 # selects the installer's agent-pod mode, which skips the shell and tool installs
-# (zsh/oh-my-zsh/p10k, captain-miao, …) that only make sense
-# in an interactive workspace. DOTFILES_URI is required and checked first: an
-# unset value must fail deterministically, before the clone below and before
-# every other step, instead of leaving a bare agent to run. DOTFILES_REF picks
-# the ref, defaulting to the remote's default branch.
-if [ -z "${DOTFILES_URI:-}" ]; then
-  log 'DOTFILES_URI is required: it names the dotfiles repo to apply at pod start.'
-  exit 1
+# that only make sense in an interactive workspace. DOTFILES_URI is optional, as
+# with Coder's dotfiles: when unset the agent runs plain, with whatever
+# configuration the image and the deployment provide. DOTFILES_REF picks the ref,
+# defaulting to the remote's default branch. The image makes no assertion about
+# what the installer produced — the dotfiles repo owns that.
+if [ -n "${DOTFILES_URI:-}" ]; then
+  # `git clone --branch` cannot take a plain SHA, so fetch the ref and check out
+  # FETCH_HEAD.
+  dotfiles_dir="$HOME/dotfiles"
+  git init -q "$dotfiles_dir"
+  git -C "$dotfiles_dir" remote add origin "$DOTFILES_URI"
+  # `set -u` without `-e` means neither of these is fatal on its own, and the
+  # install below would then fail with a confusing message — which reads as a
+  # dotfiles problem when the real cause is the network or the ref. Name the cause.
+  git -C "$dotfiles_dir" fetch --depth 1 origin "${DOTFILES_REF:-HEAD}" \
+    || { log "cannot fetch ${DOTFILES_REF:-the default branch} from $DOTFILES_URI"; exit 1; }
+  git -C "$dotfiles_dir" checkout -q --detach FETCH_HEAD \
+    || { log "cannot check out ${DOTFILES_REF:-the fetched default branch} in $DOTFILES_URI"; exit 1; }
+
+  # The dotfiles repo owns what gets installed; AGENT_POD=true is the agent-pod
+  # mode. A non-zero exit means the agent would run without its config, so fail
+  # loudly and name the cause rather than continue into a bare agent.
+  AGENT_POD=true bash "$dotfiles_dir/install.sh" \
+    || { log "dotfiles install.sh (AGENT_POD=true) failed for $DOTFILES_URI${DOTFILES_REF:+ at $DOTFILES_REF}"; exit 1; }
+  log "dotfiles applied from $DOTFILES_URI${DOTFILES_REF:+ at $DOTFILES_REF}"
 fi
-
-# `git clone --branch` cannot take a plain SHA, so fetch the ref and check out
-# FETCH_HEAD.
-dots_dir="$HOME/dotfiles"
-git init -q "$dots_dir"
-git -C "$dots_dir" remote add origin "$DOTFILES_URI"
-# `set -u` without `-e` means neither of these is fatal on its own, and the
-# install below would then fail with a confusing message — which reads as a
-# dotfiles problem when the real cause is the network or the ref. Name the cause.
-git -C "$dots_dir" fetch --depth 1 origin "${DOTFILES_REF:-HEAD}" \
-  || { log "cannot fetch ${DOTFILES_REF:-the default branch} from $DOTFILES_URI"; exit 1; }
-git -C "$dots_dir" checkout -q --detach FETCH_HEAD \
-  || { log "cannot check out ${DOTFILES_REF:-the fetched default branch} in $DOTFILES_URI"; exit 1; }
-
-# The dotfiles repo owns what gets installed; AGENT_POD=true is the agent-pod
-# mode that skips the shell and tool installs. A non-zero exit means the agent
-# would run without its config, so fail loudly and name the cause rather than
-# continue into a bare agent.
-AGENT_POD=true bash "$dots_dir/install.sh" \
-  || { log "dotfiles install.sh (AGENT_POD=true) failed for $DOTFILES_URI${DOTFILES_REF:+ at $DOTFILES_REF}"; exit 1; }
-
-# The installer owns the layout; these checks are the image's contract with it.
-# A change on either side must surface loudly here, not silently produce a bare
-# agent. Everything the agent-pod mode is expected to install is asserted.
-dots_dest="$HOME/.omp/agent"
-for path in AGENTS.md RULES.md config.yml agents rules extensions pairing-workflow.html; do
-  [ -e "$dots_dest/$path" ] || { log "dotfiles install.sh did not produce $dots_dest/$path"; exit 1; }
-done
-for skill in implement walkthrough land; do
-  [ -d "$dots_dest/skills/$skill" ] || { log "dotfiles install.sh did not produce $dots_dest/skills/$skill"; exit 1; }
-done
-[ -f "$HOME/.cc-safety-net/policy.json" ] \
-  || { log "dotfiles install.sh did not produce $HOME/.cc-safety-net/policy.json"; exit 1; }
-for skill in tdd code-review conventional-commit frontend-design apple-design; do
-  [ -d "$HOME/.agents/skills/$skill" ] || { log "dotfiles install.sh did not produce $HOME/.agents/skills/$skill"; exit 1; }
-done
-# The NeuralWatt provider is an omp plugin, and the installer's plugin loop is
-# skipped when `omp` is not on PATH — without the plugin the agent has no model
-# to run on, so assert it landed rather than let the first model call fail.
-[ -d "$HOME/.omp/plugins/node_modules/@aliou/pi-neuralwatt" ] \
-  || { log "dotfiles install.sh did not install the NeuralWatt omp plugin"; exit 1; }
-log "dotfiles applied from $DOTFILES_URI${DOTFILES_REF:+ at $DOTFILES_REF}"
 
 # --- 2. Argument check ---------------------------------------------------------
 # A Session runtime invokes this script with KELOS_SESSION_SETUP_ONLY=1 and no
@@ -114,10 +89,11 @@ fi
 # --- 4. Codebase index ---------------------------------------------------------
 # Index the workspace before the agent starts so codebase-memory-mcp answers
 # graph queries from the first turn instead of the agent spending turns on it.
-# Runs after the setup command so generated sources are included. The binary
-# comes from the dotfiles installer (installed in AGENT_POD mode too). A failed
-# index degrades the agent to grep/read rather than breaking it, so it warns.
-if [ -d /workspace/repo ]; then
+# Runs after the setup command so generated sources are included. The binary is
+# optional — the dotfiles installer provides it, and DOTFILES_URI may be unset —
+# so index only when it is on PATH. A failed index degrades the agent to
+# grep/read rather than breaking it, so it warns.
+if [ -d /workspace/repo ] && command -v codebase-memory-mcp >/dev/null 2>&1; then
   if codebase-memory-mcp cli index_repository '{"repo_path":"/workspace/repo"}' >&2; then
     log 'codebase-memory-mcp: /workspace/repo indexed'
   else
@@ -136,27 +112,24 @@ fi
 
 # --- 6. Run the agent ----------------------------------------------------------
 # Print mode (`-p`) is the only headless route: there is no `omp run` or
-# `omp implement` subcommand. The prompt is passed positionally; a non-TTY stdin
-# would also be read to EOF as prompt text, but argv is the documented form.
-# The skill is invoked by telling the model to `read skill://<name>` — that is
-# the mode-independent route, since the read tool resolves skill URIs itself.
-prompt="Read skill://${OMP_SKILL:-implement} and execute it end to end for the ticket below.
-
-${1:-}"
-
-# --approval-mode is deliberately NOT passed: the overlay at
-# /etc/omp/agent-image/agent.yml sets tools.approvalMode: yolo, which an
-# unattended run needs (the base config pins `write`, which stalls on anything
-# outside workspace-write). The overlay also restates the catastrophic-command
-# denies that yolo bypasses.
+# `omp implement` subcommand. The prompt is passed positionally, verbatim — this
+# image does not wrap it, and adds no --append-system-prompt: any system-prompt
+# material the run needs is owned by the dotfiles the installer applies (or by
+# the deployment), not by the image. A non-TTY stdin would also be read to EOF as
+# prompt text, but argv is the documented form.
 #
 # No `exec` — Kelos requires the entrypoint to survive the agent so it can emit
 # the output block afterwards — and no pipe, because we are not routing the
 # agent's stdout through /kelos/kelos-capture (see step 7).
-omp -p --no-title --max-time "${OMP_MAX_TIME:-45m}" \
-  --append-system-prompt /etc/omp/agent-image/APPEND_SYSTEM.md \
-  "$prompt"
-AGENT_EXIT_CODE=$?
+#
+# omp resolves APPEND_SYSTEM.md from the cwd's .omp/ (and .claude/ etc.) before
+# ~/.omp/agent/, so the cloned, untrusted repo could replace the dotfiles'
+# addendum. Passing the user file explicitly pins it.
+append_args=()
+[ -f "$HOME/.omp/agent/APPEND_SYSTEM.md" ] \
+  && append_args=(--append-system-prompt "$HOME/.omp/agent/APPEND_SYSTEM.md")
+omp -p --no-title --max-time "${OMP_MAX_TIME:-45m}" "${append_args[@]}" "${1:-}"
+agent_status=$?
 
 # --- 7. Emit Kelos outputs -----------------------------------------------------
 # /kelos/kelos-capture is not published as a standalone artifact, so this image
@@ -181,4 +154,4 @@ if [ -n "$branch" ] && [ "$branch" != "HEAD" ]; then
 fi
 
 # --- 8. Propagate the agent's exit code ----------------------------------------
-exit "$AGENT_EXIT_CODE"
+exit "$agent_status"
