@@ -60,7 +60,7 @@ variable "BUN_VERSION" {
 }
 // renovate: datasource=npm depName=npm
 variable "NPM_VERSION" {
-  default = "11.19.0"
+  default = "11.21.1"
 }
 // renovate: datasource=github-releases depName=sharkdp/fd extractVersion=^v(?<version>.+)$
 variable "FD_VERSION" {
