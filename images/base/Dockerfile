@@ -4,7 +4,6 @@
 # Build args (no defaults — docker-bake.hcl supplies all values)
 ARG DEBIAN_VERSION
 ARG TZ
-ARG NODE_MAJOR
 # renovate: datasource=github-releases depName=neovim/neovim extractVersion=^(?<version>.*)$
 ARG NVIM_VERSION
 # renovate: datasource=github-releases depName=rtk-ai/rtk extractVersion=^(?<version>.*)$
@@ -15,14 +14,14 @@ ARG DELTA_VERSION
 ARG RIPGREP_VERSION
 # renovate: datasource=github-releases depName=sharkdp/bat extractVersion=^v(?<version>.+)$
 ARG BAT_VERSION
-# renovate: datasource=github-releases depName=anomalyco/opencode extractVersion=^v(?<version>.+)$
-ARG OPENCODE_VERSION
 # renovate: datasource=github-releases depName=can1357/oh-my-pi extractVersion=^v(?<version>.+)$
 ARG OMP_VERSION
 # renovate: datasource=github-releases depName=zellij-org/zellij extractVersion=^v(?<version>.+)$
 ARG ZELLIJ_VERSION
 # renovate: datasource=github-releases depName=oven-sh/bun extractVersion=^bun-v(?<version>.+)$
 ARG BUN_VERSION
+# renovate: datasource=npm depName=npm
+ARG NPM_VERSION
 # renovate: datasource=github-releases depName=sharkdp/fd extractVersion=^v(?<version>.+)$
 ARG FD_VERSION
 # renovate: datasource=github-releases depName=hyperlogue/captain-miao extractVersion=^v(?<version>.+)$
@@ -39,16 +38,15 @@ FROM debian:${DEBIAN_VERSION}
 # Re-declare args for use in this stage
 ARG DEBIAN_VERSION
 ARG TZ
-ARG NODE_MAJOR
 ARG NVIM_VERSION
 ARG RTK_VERSION
 ARG DELTA_VERSION
 ARG RIPGREP_VERSION
 ARG BAT_VERSION
-ARG OPENCODE_VERSION
 ARG OMP_VERSION
 ARG ZELLIJ_VERSION
 ARG BUN_VERSION
+ARG NPM_VERSION
 ARG FD_VERSION
 ARG MIAO_VERSION
 ARG YAZI_VERSION
@@ -64,7 +62,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     NPM_CONFIG_PREFIX=/home/dev/.local \
     PATH="/home/dev/.local/bin:${PATH}"
 
-# System packages, locale, timezone, Node.js, GitHub CLI
+# System packages, locale, timezone, GitHub CLI
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     set -e \
@@ -93,21 +91,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     gpg \
     gpg-agent \
     zoxide \
-    ffmpeg \
     && sed -i 's/^# *en_AU.UTF-8/en_AU.UTF-8/' /etc/locale.gen \
     && locale-gen en_AU.UTF-8 \
     && ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime \
     && echo ${TZ} > /etc/timezone \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-    | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
-    > /etc/apt/sources.list.d/nodesource.list \
     && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
     > /etc/apt/sources.list.d/github-cli.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends nodejs gh \
+    && apt-get install -y --no-install-recommends gh \
     && rm -rf /tmp/* /var/tmp/*
 
 # Runtime libraries for the Chromium build omp's browser tool drives (headless
@@ -169,7 +162,6 @@ RUN mkdir -p /etc/zsh \
     && chown root:root /etc/zsh/zshrc \
     && chmod 644 /etc/zsh/zshrc \
     && mkdir -p \
-    /home/dev/.config/opencode \
     /home/dev/.local/bin \
     /run/user/1000/gnupg \
     && touch /etc/gitconfig && chown dev:dev /etc/gitconfig \
@@ -189,6 +181,36 @@ RUN case "${TARGETARCH}" in \
     && mv /tmp/bun-linux-${BunArch}/bun /usr/local/bin/ \
     && chmod +x /usr/local/bin/bun \
     && rm -rf /tmp/bun*
+
+# node is bun: bun is a node-compatible runtime (node-style process.version,
+# N-API addons), so the image carries one JavaScript runtime instead of two.
+# Bun switches to Node mode only when argv[0] is named `node`, hence the
+# symlink in /usr/local/lib/bun-node. In that mode bun rejects `--version`/`-v`,
+# which tools use to probe node, so the /usr/local/bin/node wrapper answers
+# those itself and hands everything else to the symlink.
+# ponytail: other node-only CLI flags bun lacks still fail; install real node
+# (NodeSource apt repo) if a tool needs them.
+# npm is the standalone registry tarball; its `#!/usr/bin/env node` shebangs
+# resolve to the wrapper. /usr/local/lib is root-owned, so this runs as root —
+# dev's global installs go to NPM_CONFIG_PREFIX (/home/dev/.local) instead.
+USER root
+RUN mkdir -p /usr/local/lib/bun-node \
+    && ln -sf /usr/local/bin/bun /usr/local/lib/bun-node/node \
+    && printf '%s\n' \
+    '#!/bin/sh' \
+    'case "$1" in -v|--version) exec /usr/local/lib/bun-node/node -p process.version ;; esac' \
+    'exec /usr/local/lib/bun-node/node "$@"' \
+    > /usr/local/bin/node \
+    && chmod 755 /usr/local/bin/node \
+    && curl -fsSL -o /tmp/npm.tgz \
+    "https://registry.npmjs.org/npm/-/npm-${NPM_VERSION}.tgz" \
+    && mkdir -p /usr/local/lib/node_modules/npm \
+    && tar -xzf /tmp/npm.tgz --strip-components=1 -C /usr/local/lib/node_modules/npm \
+    && ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && rm -f /tmp/npm.tgz \
+    && node --version \
+    && npm --version
 
 # Install rtk (LLM token optimizer)
 RUN case "${TARGETARCH}" in \
@@ -310,19 +332,6 @@ RUN mv /usr/bin/sudo /usr/bin/sudo.real
 COPY shared/sudo-wrapper.sh /usr/bin/sudo
 RUN chmod 755 /usr/bin/sudo
 USER dev
-
-# Install OpenCode CLI (multi-arch)
-RUN case "${TARGETARCH}" in \
-    amd64) OpenCodeArch="x64" ;; \
-    arm64) OpenCodeArch="arm64" ;; \
-    *) echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
-    esac \
-    && curl -fsSL -o /tmp/opencode.tar.gz \
-    "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-linux-${OpenCodeArch}.tar.gz" \
-    && tar -xzf /tmp/opencode.tar.gz -C /usr/local/bin/ \
-    && chmod +x /usr/local/bin/opencode \
-    && rm /tmp/opencode.tar.gz \
-    && opencode --version
 
 # Install omp (Oh My Pi coding agent, multi-arch)
 RUN case "${TARGETARCH}" in \

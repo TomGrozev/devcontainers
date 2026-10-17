@@ -58,11 +58,9 @@ Parameters are configurable from the Coder UI at workspace creation or (for muta
 | `kubernetes_persistent_volume_claim_v1.home` | Persistent `/home/dev` across workspace restarts. Labelled with Coder workspace, user, and resource metadata.                                                                                                                                  |
 | `kubernetes_deployment_v1.main`           | Runs the container rootless (UID/GID 1000, all capabilities dropped, seccomp `RuntimeDefault`), uses `Recreate` strategy, applies pod anti-affinity, and sets CPU/memory requests and limits from the `cpu`/`memory` parameters.                    |
 | `coder_script.zellij_web`                 | On-start script that runs under `zsh` (so `~/.zshenv` is sourced and its environment — the proper omp environment — is inherited by the daemon), then mints a zellij web login token once (stored on the PVC) and daemonizes `zellij web` on loopback `:8082` for mobile browser access.                        |
-| `coder_app.opencode`                      | Proxies the opencode server via subdomain (`http://localhost:4096`). Healthy only while a session started by the Start opencode button is running. Healthcheck at `/global/health`.                                                                 |
 | `coder_script.ompweb`                     | On-start script that daemonizes the ompweb server via `npx -y @kahme247/ompweb` (npm cache on PVC) under `zsh` (inheriting `~/.zshenv` PATH). Runs once at boot.                                                                                              |
 | `coder_app.ompweb`                        | Proxies the ompweb browser UI for omp via subdomain (`http://localhost:30177`). Healthy while the ompweb daemon is running. Healthcheck at `/api/home`.                                                                                                |
 | `coder_app.restart_ompweb`               | Button: kills and relaunches the ompweb daemon (useful for recovering wedged processes or updating versions).                                                                                                                                     |
-| `coder_app.start_opencode`                | Button: launches opencode (TUI + server in one process) in the miao pool, binding its server to loopback `:4096` (idempotent).                                                                                                                    |
 | `coder_app.zellij_web`                    | Proxies the zellij web terminal via subdomain (`http://localhost:8082`); lands on zellij's session picker. First visit asks for a login token.                                                                                                     |
 | `coder_app.zellij_token`                  | Button: prints the zellij web login token minted at boot (zellij never re-displays it).                                                                                                                                            |
 | `coder_app.refresh_dotfiles`              | A workspace-app button that re-runs `coder dotfiles` against the current `dotfiles_uri` value to pull the latest dotfiles and re-apply.                                                                                                            |
@@ -74,7 +72,7 @@ The following environment variables are set in the workspace container:
 | Variable         | Value                          | Purpose                                                              |
 | ---------------- | ------------------------------ | -------------------------------------------------------------------- |
 | `CODER_AGENT_TOKEN` | `coder_agent.main.token`     | Coder agent authentication (required).                               |
-| `DEVCONTAINER`   | `"true"`                       | Container detection used by dotfiles (e.g. permissive opencode permission tier). |
+| `DEVCONTAINER`   | `"true"`                       | Container detection used by dotfiles. |
 | `CODER_CONFIG_DIR` | `/home/dev/.config/coderv2`  | Coder CLI global config dir; `coder dotfiles` keeps its checkout at `<dir>/dotfiles`. |
 | `R3_URL`         | `var.r3_url` (present only when non-empty) | r3 server URL the workspace registers as a client of; omitted entirely when `r3_url` is empty. |
 | `R3_API_KEY`     | Secret `r3-workspace-credentials` (namespace `dev`, key `api-key`) | Shared r3 API key, piped to `r3 login` at startup. The Secret is optional: until it exists the value is empty and the startup login is skipped. |
@@ -83,10 +81,9 @@ The agent's working directory is `/home/dev/workspace`.
 
 ## Sessions and mobile access
 
-Both coding agents run server-side so a session started from the laptop keeps running when the laptop closes, and is reachable from a phone on the LAN through the Coder dashboard.
+Sessions run server-side so a session started from the laptop keeps running when the laptop closes, and is reachable from a phone on the LAN through the Coder dashboard.
 
-+ **omp** — The **ompweb** browser UI is started at boot as a standalone daemon on `:30177` (not a pty session, so it does not live in the miao pool). It spawns omp agents directly as child processes. Open the **ompweb** app to browse sessions and drive new ones. Use the **Restart ompweb** button if the daemon hangs. **Start opencode** and **OpenCode** are the opencode equivalents.
-- **opencode** — the **Start opencode** button runs `opencode` with `--hostname 127.0.0.1 --port 4096` inside the pool, so the **OpenCode** web app and a laptop `opencode attach http://localhost:4096` both talk to the same session store and can hand off mid-task (including permission approvals).
++ **omp** — The **ompweb** browser UI is started at boot as a standalone daemon on `:30177` (not a pty session, so it does not live in the miao pool). It spawns omp agents directly as child processes. Open the **ompweb** app to browse sessions and drive new ones. Use the **Restart ompweb** button if the daemon hangs.
 - **Zellij (terminal)** — the **Zellij** app is a full mobile terminal served by zellij web on `:8082`. On first visit, copy the token from the **Zellij token** button (one paste per device, remembered for ~4 weeks).
 
 Everything serving over HTTP binds loopback only and is reached through Coder's authenticated subdomain proxy — nothing is exposed directly on the network.
@@ -163,7 +160,7 @@ Override the `image` parameter in the Coder UI. The image must:
 - Have a writable home directory at `/home/dev`
 - Have `curl` and `sh` for the coder agent installer
 - Include the toolchain expected for the chosen `language` (e.g. `mix`/`hex` for Elixir, `cargo`/`rustup` for Rust)
-- Include `zellij`, `miao`, `miao-server`, `omp`, and `opencode` for the session/mobile workflow above
+- Include `zellij`, `miao`, `miao-server`, and `omp` for the session/mobile workflow above
 
 ### Adding a repo to clone on startup
 
@@ -199,9 +196,9 @@ The PVC might be owned by a different UID from a previous session. The deploymen
 
 For Elixir workspaces, the startup script runs `mix local.hex --force` on first start. If mix is not in the image, the bootstrap will fail. Ensure your `image` includes Elixir/Erlang, or that the auto-computed image for your `language` is reachable.
 
-### Start ompweb / Start opencode reports it's already running
+### ompweb reports it's already running
 
-+ The buttons are idempotent and exit early when their health endpoint is reachable. If that's wrong (the process is dead but the port is still held), stop it and start fresh. For **ompweb**, use the **Restart ompweb** button or kill the daemon manually (e.g. `pkill -f '@kahme247/ompweb'`); its agents are child processes and die with the daemon. For **opencode**, stop the pooled session from the miao dashboard (`x`), or run `miao-server daemon stop` to tear the pool down and start fresh.
++ The button is idempotent and exits early when its health endpoint is reachable. If that's wrong (the process is dead but the port is still held), stop it and start fresh: use the **Restart ompweb** button or kill the daemon manually (e.g. `pkill -f '@kahme247/ompweb'`); its agents are child processes and die with the daemon.
 
 ### Dotfiles did not update
 
@@ -214,4 +211,4 @@ The prebuilt image for each `language` value bundles the following toolchain:
 - **Elixir**: Erlang/OTP, Elixir, mix, hex, inotify-tools
 - **Rust**: rustup, cargo, rustfmt, clippy, rust-analyzer, rust-src, pkg-config, libssl-dev
 
-Both images also include Node.js, Neovim, zsh, fzf, delta, rtk, zellij, captain-miao (`miao` + `miao-server`), omp, and the opencode CLI.
+Both images also include `node` (Bun via a thin wrapper) with npm/npx standalone, Neovim, zsh, fzf, delta, rtk, zellij, captain-miao (`miao` + `miao-server`), and omp.
