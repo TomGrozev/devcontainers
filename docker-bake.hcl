@@ -91,7 +91,7 @@ variable "RUST_VERSION" {
 // ── Target groups ──────────────────────────────────────────────────────────
 
 group "all" {
-  targets = ["base", "elixir", "rust"]
+  targets = ["base", "elixir", "rust", "agent-elixir", "agent-rust"]
 }
 
 // ── Common args ────────────────────────────────────────────────────────────
@@ -211,5 +211,61 @@ target "rust" {
     ["ghcr.io/tomgrozev/devcontainer-rust:rust-${regex_replace(RUST_VERSION, "(\\d+\\.\\d+).*", "$1")}"],
     ["ghcr.io/tomgrozev/devcontainer-rust:rust-${RUST_VERSION}"],
     VERSION != "" ? ["ghcr.io/tomgrozev/devcontainer-rust:${VERSION}-rust-${RUST_VERSION}"] : [],
+  )
+}
+
+// ── Agent ──────────────────────────────────────────────────────────────────
+//
+// The agent layer is one Dockerfile over a variable base. Everything it adds —
+// the Kelos entrypoint — is language-independent, so it layers on whichever
+// language image bake points the `base` context at. Adding a language is a target
+// that inherits `agent-elixir` and overrides `contexts.base`; the Dockerfile
+// never changes.
+
+target "agent-elixir" {
+  dockerfile  = "images/agent/Dockerfile"
+  platforms   = ["linux/amd64", "linux/arm64"]
+  contexts    = { base = "target:elixir" }
+  cache-from  = ["type=gha,scope=agent"]
+  cache-to    = ["type=gha,scope=agent,mode=max"]
+  args = common_args()
+
+  labels = merge(
+    common_labels("devcontainer-agent-elixir", "Unattended omp agent container on the Elixir language image — runs as UID 61100"),
+    {
+      "dev.tomgrozev.toolchain.omp" = "${OMP_VERSION}"
+    }
+  )
+
+  tags = concat(
+    ["ghcr.io/tomgrozev/devcontainer-agent-elixir:latest"],
+    VERSION != "" ? ["ghcr.io/tomgrozev/devcontainer-agent-elixir:${VERSION}"] : [],
+    GIT_SHA != "" ? ["ghcr.io/tomgrozev/devcontainer-agent-elixir:sha-${substr(GIT_SHA, 0, 7)}"] : [],
+    ["ghcr.io/tomgrozev/devcontainer-agent-elixir:omp-${regex_replace(OMP_VERSION, "(\\d+\\.\\d+).*", "$1")}"],
+    ["ghcr.io/tomgrozev/devcontainer-agent-elixir:omp-${OMP_VERSION}"],
+    VERSION != "" ? ["ghcr.io/tomgrozev/devcontainer-agent-elixir:${VERSION}-omp-${OMP_VERSION}"] : [],
+  )
+}
+
+// Rust agent: identical Dockerfile, pins, platforms, args and cache — inherited
+// from `agent-elixir` — so only the base context, labels and tags are restated.
+target "agent-rust" {
+  inherits = ["agent-elixir"]
+  contexts = { base = "target:rust" }
+
+  labels = merge(
+    common_labels("devcontainer-agent-rust", "Unattended omp agent container on the Rust language image — runs as UID 61100"),
+    {
+      "dev.tomgrozev.toolchain.omp" = "${OMP_VERSION}"
+    }
+  )
+
+  tags = concat(
+    ["ghcr.io/tomgrozev/devcontainer-agent-rust:latest"],
+    VERSION != "" ? ["ghcr.io/tomgrozev/devcontainer-agent-rust:${VERSION}"] : [],
+    GIT_SHA != "" ? ["ghcr.io/tomgrozev/devcontainer-agent-rust:sha-${substr(GIT_SHA, 0, 7)}"] : [],
+    ["ghcr.io/tomgrozev/devcontainer-agent-rust:omp-${regex_replace(OMP_VERSION, "(\\d+\\.\\d+).*", "$1")}"],
+    ["ghcr.io/tomgrozev/devcontainer-agent-rust:omp-${OMP_VERSION}"],
+    VERSION != "" ? ["ghcr.io/tomgrozev/devcontainer-agent-rust:${VERSION}-omp-${OMP_VERSION}"] : [],
   )
 }
