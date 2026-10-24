@@ -42,6 +42,9 @@ jobs:
           docker run --rm ghcr.io/tomgrozev/devcontainer-base:latest id dev
           docker run --rm ghcr.io/tomgrozev/devcontainer-base:latest sudo true
           docker run --rm ghcr.io/tomgrozev/devcontainer-base:latest su -c true
+          # safe.directory must be visible to `dev`, not only to root: a workspace
+          # whose files have another UID fails git's ownership check without it.
+          docker run --rm ghcr.io/tomgrozev/devcontainer-base:latest sh -c 'test "$(git config --get-all safe.directory)" = "*"'
           echo "=== User and wrapper tests passed ==="
 
       - name: Build Elixir image (single arch, load into Docker)

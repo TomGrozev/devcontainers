@@ -134,7 +134,7 @@ The `miao` and `miao-server` binaries ship in the image (pinned in `docker-bake.
 5. The agent's `startup_script` runs first-time init:
    - Creates `/home/dev/{workspace,.local/bin,.local/share,.config,.ssh}`.
    - Sets global git identity only if not already configured.
-   - Git safety for `/home/dev/workspace` comes from the deployment's `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_0`/`GIT_CONFIG_VALUE_0` env vars, not from a write to `~/.gitconfig`.
+   - Git safety for `/home/dev/workspace` comes from the base image's `/etc/gitconfig` (`safe.directory`, written with `git config --system`) and from the deployment's `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_0`/`GIT_CONFIG_VALUE_0` env vars, not from a write to `~/.gitconfig` (which is a symlink into the dotfiles checkout).
    - Runs the language-specific `bootstrap.sh` from `/usr/local/share/devcontainer/` if present.
    - Clones the `repo` parameter into `/home/dev/workspace` if set and not already a git repo.
    - Applies dotfiles via `coder dotfiles <dotfiles_uri> -y` (hard-reset to upstream branch first), re-applied on every start.

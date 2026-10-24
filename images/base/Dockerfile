@@ -315,8 +315,12 @@ RUN case "${TARGETARCH}" in \
     && d2 --version \
     && rm -rf /tmp/d2*
 
-# Git safe directory
-RUN git config --global --add safe.directory '*'
+# Git safe directory, written to /etc/gitconfig so every user in the image
+# gets it. A `--global` write here lands in /root/.gitconfig, because this part
+# of the build runs as root, and `dev` never reads it. A bind mount or a
+# re-owned workspace (host UID differs from the container user) then fails the
+# ownership check with "dubious ownership".
+RUN git config --system --add safe.directory '*'
 
 # Coder rootless pod support: replace su with passthrough wrapper
 USER root
