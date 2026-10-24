@@ -204,10 +204,10 @@ resource "coder_agent" "main" {
     mkdir -p /home/dev/workspace /home/dev/.local/bin /home/dev/.local/share /home/dev/.config /home/dev/.ssh
 
     # Workspace safety for git (avoids dubious ownership errors) is supplied by
-    # the GIT_CONFIG_* env vars on the deployment, NOT by a `git config
-    # --global` write here: ~/.gitconfig is a symlink into the dotfiles
-    # checkout, so writing it would dirty that checkout and block the dotfiles
-    # sync below.
+    # the base image's /etc/gitconfig and by the GIT_CONFIG_* env vars on the
+    # deployment, NOT by a `git config --global` write here: ~/.gitconfig is a
+    # symlink into the dotfiles checkout, so writing it would dirty that
+    # checkout and block the dotfiles sync below.
 
     # Set git identity only if not already configured
     if [ -z "$(git config --global user.name)" ]; then
@@ -410,10 +410,10 @@ resource "kubernetes_deployment_v1" "main" {
           # safe.directory via git's env-config mechanism, which git treats as
           # "command line" scope — the highest-precedence protected config, so
           # it covers the ownership check without persisting anything to disk.
-          # (The `git config --global safe.directory` in images/base runs as
-          # root and lands in /root/.gitconfig, so it never reached the dev
-          # user; writing it at startup instead would dirty the symlinked
-          # ~/.gitconfig inside the dotfiles checkout.)
+          # The base image also writes it to /etc/gitconfig; this env form keeps
+          # workspaces safe when the template runs an older published image.
+          # (Writing `git config --global` at startup instead would dirty the
+          # symlinked ~/.gitconfig inside the dotfiles checkout.)
           env {
             name  = "GIT_CONFIG_COUNT"
             value = "1"
