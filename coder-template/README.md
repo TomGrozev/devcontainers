@@ -77,7 +77,7 @@ The following environment variables are set in the workspace container:
 | `R3_URL`         | `var.r3_url` (present only when non-empty) | r3 server URL the workspace registers as a client of; omitted entirely when `r3_url` is empty. |
 | `R3_API_KEY`     | Secret `r3-workspace-credentials` (namespace `dev`, key `api-key`) | Shared r3 API key, piped to `r3 login` at startup. The Secret is optional: until it exists the value is empty and the startup login is skipped. |
 
-The agent's working directory is `/home/dev/workspace`.
+The container's working directory is `/home/dev`, the home volume's mount point. The startup script creates `/home/dev/workspace` as `dev`, and zsh starts there. The image's `WORKDIR` (`/home/dev/workspace`) is not used: on a fresh volume the container runtime would create it as `root`, and `dev` could not write to it.
 
 ## Sessions and mobile access
 

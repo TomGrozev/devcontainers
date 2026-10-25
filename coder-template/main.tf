@@ -373,6 +373,13 @@ resource "kubernetes_deployment_v1" "main" {
 
           command = ["sh", "-c", coder_agent.main.init_script]
 
+          # The image's WORKDIR is /home/dev/workspace, but the home PVC hides
+          # it. On a fresh PVC the container runtime then creates that directory
+          # itself, as root and before the startup script runs, so `dev` cannot
+          # write to it. /home/dev is the mount point and always exists; the
+          # startup script creates ~/workspace as `dev`.
+          working_dir = "/home/dev"
+
           security_context {
             run_as_user                = 1000
             run_as_group               = 1000
