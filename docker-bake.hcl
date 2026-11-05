@@ -64,7 +64,7 @@ variable "NPM_VERSION" {
 }
 // renovate: datasource=github-releases depName=sharkdp/fd extractVersion=^v(?<version>.+)$
 variable "FD_VERSION" {
-  default = "10.5.0"
+  default = "10.5.1"
 }
 // renovate: datasource=github-releases depName=hyperlogue/captain-miao extractVersion=^v(?<version>.+)$
 variable "MIAO_VERSION" {
