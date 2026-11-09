@@ -128,6 +128,9 @@ fi
 append_args=()
 [ -f "$HOME/.omp/agent/APPEND_SYSTEM.md" ] \
   && append_args=(--append-system-prompt "$HOME/.omp/agent/APPEND_SYSTEM.md")
+# HEAD before the agent runs, so step 7 can tell a commit made by this run from
+# the cloned base.
+start_commit="$(git -C /workspace/repo rev-parse HEAD 2>/dev/null || true)"
 omp -p --no-title --max-time "${OMP_MAX_TIME:-45m}" "${append_args[@]}" "${1:-}"
 agent_status=$?
 
@@ -137,16 +140,22 @@ agent_status=$?
 # controller reads pod logs and extracts the lines between them; each line is
 # `key: value` and lines without `: ` are kept in Outputs but skipped in Results.
 #
-# Every probe is guarded so that a missing repo, a detached HEAD or an
-# unauthenticated `gh` emits nothing rather than aborting the script and losing
-# the agent's exit code. `gh` resolves the repository from the cwd, which Kelos
-# set to /workspace/repo.
+# Every probe is guarded so that a missing repo, a detached HEAD, an unreachable
+# remote or an unauthenticated `gh` emits nothing rather than aborting the script
+# and losing the agent's exit code. `gh` resolves the repository from the cwd,
+# which Kelos set to /workspace/repo.
 branch="$(git -C /workspace/repo rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 if [ -n "$branch" ] && [ "$branch" != "HEAD" ]; then
   printf -- '---KELOS_OUTPUTS_START---\n'
   printf 'branch: %s\n' "$branch"
+  # `commit` names only delivered work: a commit made during this run that the
+  # remote branch now points at. A bare local `rev-parse HEAD` reads as delivered
+  # work even when the run committed nothing (HEAD is still the cloned base) or
+  # never pushed (the commit dies with the pod).
   commit="$(git -C /workspace/repo rev-parse HEAD 2>/dev/null || true)"
-  [ -n "$commit" ] && printf 'commit: %s\n' "$commit"
+  remote_commit="$(GIT_TERMINAL_PROMPT=0 git -C /workspace/repo ls-remote origin "refs/heads/$branch" 2>/dev/null | cut -f1 || true)"
+  [ -n "$commit" ] && [ "$commit" != "$start_commit" ] && [ "$commit" = "$remote_commit" ] \
+    && printf 'commit: %s\n' "$commit"
   [ -n "${KELOS_BASE_BRANCH:-}" ] && printf 'base-branch: %s\n' "$KELOS_BASE_BRANCH"
   pr="$(gh pr list --head "$branch" --json url --jq '.[0].url' 2>/dev/null || true)"
   [ -n "$pr" ] && printf 'pr: %s\n' "$pr"
