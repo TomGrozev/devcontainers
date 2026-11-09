@@ -53,6 +53,7 @@ The agent layer is language-independent: one Dockerfile and one Kelos entrypoint
 - Credentials (provider API keys, git identity) are deployment concerns: inject them as env vars or mounted files in the pod spec, the same way a Coder workspace gets them, so the image stays setup-agnostic.
 - `/home/agent/.local/bin` is pre-created, agent-owned, and first on `PATH`, so a workspace `setupCommand` can install tools the agent then resolves by name
 - `OMP_MCP_REQUIRE_READY=1`, so print mode exits 1 if a configured MCP server is still pending or has failed, rather than running the turn without it
+- The pod log shows the run's progress: omp runs in JSON mode, and the entrypoint prints one timestamped line per turn, tool call, assistant message and worker result. A run stopped by `OMP_MAX_TIME` still shows which workers were dispatched and never returned.
 
 ## What's Deferred
 
