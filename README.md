@@ -21,7 +21,7 @@ All images except the agent images run as user `dev` (UID/GID 1000), shell `/bin
 - Debian trixie-slim
 - `node` (Bun via a thin wrapper) + npm/npx standalone + GitHub CLI
 - Neovim (multi-arch, `/opt/nvim`)
-- rtk, delta, ripgrep, bat, omp, git-graph, d2, yazi (system binaries on PATH)
+- delta, ripgrep, bat, omp, git-graph, d2, yazi (system binaries on PATH)
 - apt packages: build-essential, gcc, g++, git, file, jq, fzf, zsh, gpg, openssh-client, curl, ca-certificates, procps, sudo, unzip, zoxide, tmux, locales
 - Chromium runtime libraries so `omp`'s browser tool can launch its bundled browser (NSS/NSPR, ATK, AT-SPI, CUPS, ALSA, Mesa/GBM, X11, Pango, Cairo)
 - Rootless `su`/`sudo` passthrough wrappers
@@ -134,7 +134,6 @@ To rebuild images manually: trigger **Actions > Build and Push > Run workflow**.
 | Debian | trixie-20260803-slim |
 | Neovim | v0.12.4 |
 | npm | 11.19.0 |
-| rtk | v0.45.0 |
 | delta | 0.19.2 |
 | ripgrep | 15.2.0 |
 | bat | 0.26.1 |
