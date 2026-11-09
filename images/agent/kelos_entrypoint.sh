@@ -118,9 +118,16 @@ fi
 # the deployment), not by the image. A non-TTY stdin would also be read to EOF as
 # prompt text, but argv is the documented form.
 #
-# No `exec` — Kelos requires the entrypoint to survive the agent so it can emit
-# the output block afterwards — and no pipe, because we are not routing the
-# agent's stdout through /kelos/kelos-capture (see step 7).
+# No `exec`: Kelos requires the entrypoint to survive the agent so it can emit
+# the output block afterwards. The agent's stdout is not routed through
+# /kelos/kelos-capture (see step 7).
+#
+# Text mode prints only the final answer, and a run cut off by --max-time prints
+# nothing, so a stuck run leaves no trace of how far it got. JSON mode streams
+# every event as it happens; `progress_log` cuts that down to one timestamped
+# line per turn, tool call, assistant message and injected message (worker
+# results, agent messages), so the pod log shows what was still running.
+# `fromjson?` skips any non-JSON line instead of ending the stream.
 #
 # omp resolves APPEND_SYSTEM.md from the cwd's .omp/ (and .claude/ etc.) before
 # ~/.omp/agent/, so the cloned, untrusted repo could replace the dotfiles'
@@ -131,8 +138,24 @@ append_args=()
 # HEAD before the agent runs, so step 7 can tell a commit made by this run from
 # the cloned base.
 start_commit="$(git -C /workspace/repo rev-parse HEAD 2>/dev/null || true)"
-omp -p --no-title --max-time "${OMP_MAX_TIME:-45m}" "${append_args[@]}" "${1:-}"
-agent_status=$?
+progress_log() {
+  jq -R --unbuffered -r '
+    def clip(n): tostring | gsub("\\s+"; " ") | .[0:n];
+    def text: if type == "array" then map(select(.type == "text") | .text) | join(" ") else . end;
+    fromjson? |
+    (now | strftime("%H:%M:%S")) as $t |
+    if .type == "turn_start" then "\($t) turn"
+    elif .type == "tool_execution_start" then "\($t) tool \(.toolName): \((.intent // "") | clip(80)) \(.args | clip(200))"
+    elif .type == "tool_execution_end" and .isError == true then "\($t) tool \(.toolName) failed: \(.result | clip(300))"
+    elif .type == "message_end" and .message.role == "assistant" then
+      (.message.content | text | clip(600)) as $x | if $x == "" then empty else "\($t) assistant: \($x)" end
+    elif .type == "message_end" and .message.role == "custom" then "\($t) \(.message.customType // "message"): \(.message.content | text | clip(300))"
+    elif .type == "agent_end" then "\($t) agent end"
+    else empty end'
+}
+omp -p --no-title --mode json --max-time "${OMP_MAX_TIME:-45m}" "${append_args[@]}" "${1:-}" \
+  | progress_log
+agent_status=${PIPESTATUS[0]}
 
 # --- 7. Emit Kelos outputs -----------------------------------------------------
 # /kelos/kelos-capture is not published as a standalone artifact, so this image
