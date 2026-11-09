@@ -18,7 +18,6 @@ debian=$(echo "$json" | jq -r '.target.elixir.args.DEBIAN_VERSION // "?"')
 rust_ver=$(echo "$json" | jq -r '.target.rust.args.RUST_VERSION // "?"')
 nvim=$(echo "$json" | jq -r '.target.elixir.args.NVIM_VERSION // "?"')
 npm=$(echo "$json" | jq -r '.target.elixir.args.NPM_VERSION // "?"')
-rtk=$(echo "$json" | jq -r '.target.elixir.args.RTK_VERSION // "?"')
 delta=$(echo "$json" | jq -r '.target.elixir.args.DELTA_VERSION // "?"')
 ripgrep=$(echo "$json" | jq -r '.target.elixir.args.RIPGREP_VERSION // "?"')
 bat=$(echo "$json" | jq -r '.target.elixir.args.BAT_VERSION // "?"')
@@ -35,7 +34,6 @@ table="| Component | Version |
 | Debian | ${debian} |
 | Neovim | ${nvim} |
 | npm | ${npm} |
-| rtk | ${rtk} |
 | delta | ${delta} |
 | ripgrep | ${ripgrep} |
 | bat | ${bat} |

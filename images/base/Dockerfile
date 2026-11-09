@@ -6,8 +6,6 @@ ARG DEBIAN_VERSION
 ARG TZ
 # renovate: datasource=github-releases depName=neovim/neovim extractVersion=^(?<version>.*)$
 ARG NVIM_VERSION
-# renovate: datasource=github-releases depName=rtk-ai/rtk extractVersion=^(?<version>.*)$
-ARG RTK_VERSION
 # renovate: datasource=github-releases depName=dandavison/delta extractVersion=^(?<version>.*)$
 ARG DELTA_VERSION
 # renovate: datasource=github-releases depName=BurntSushi/ripgrep extractVersion=^(?<version>.*)$
@@ -39,7 +37,6 @@ FROM debian:${DEBIAN_VERSION}
 ARG DEBIAN_VERSION
 ARG TZ
 ARG NVIM_VERSION
-ARG RTK_VERSION
 ARG DELTA_VERSION
 ARG RIPGREP_VERSION
 ARG BAT_VERSION
@@ -211,18 +208,6 @@ RUN mkdir -p /usr/local/lib/bun-node \
     && rm -f /tmp/npm.tgz \
     && node --version \
     && npm --version
-
-# Install rtk (LLM token optimizer)
-RUN case "${TARGETARCH}" in \
-    amd64) RtkArch="x86_64-unknown-linux-musl" ;; \
-    arm64) RtkArch="aarch64-unknown-linux-gnu" ;; \
-    *) echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
-    esac \
-    && curl -fsSL -o /tmp/rtk.tar.gz \
-    "https://github.com/rtk-ai/rtk/releases/download/${RTK_VERSION}/rtk-${RtkArch}.tar.gz" \
-    && tar -xzf /tmp/rtk.tar.gz -C /usr/local/bin/ \
-    && chmod +x /usr/local/bin/rtk \
-    && rm /tmp/rtk.tar.gz
 
 # Install delta (syntax-highlighting pager for git)
 RUN case "${TARGETARCH}" in \

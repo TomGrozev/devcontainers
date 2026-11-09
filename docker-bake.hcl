@@ -30,10 +30,6 @@ variable "TZ" {
 variable "NVIM_VERSION" {
   default = "v0.12.6"
 }
-// renovate: datasource=github-releases depName=rtk-ai/rtk extractVersion=^(?<version>.*)$
-variable "RTK_VERSION" {
-  default = "v1.2.0"
-}
 // renovate: datasource=github-releases depName=dandavison/delta extractVersion=^(?<version>.*)$
 variable "DELTA_VERSION" {
   default = "0.20.1"
@@ -102,7 +98,6 @@ function "common_args" {
     DEBIAN_VERSION   = "${DEBIAN_VERSION}"
     TZ               = "${TZ}"
     NVIM_VERSION     = "${NVIM_VERSION}"
-    RTK_VERSION      = "${RTK_VERSION}"
     DELTA_VERSION    = "${DELTA_VERSION}"
     RIPGREP_VERSION  = "${RIPGREP_VERSION}"
     BAT_VERSION      = "${BAT_VERSION}"

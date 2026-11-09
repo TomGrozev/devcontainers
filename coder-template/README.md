@@ -211,4 +211,4 @@ The prebuilt image for each `language` value bundles the following toolchain:
 - **Elixir**: Erlang/OTP, Elixir, mix, hex, inotify-tools
 - **Rust**: rustup, cargo, rustfmt, clippy, rust-analyzer, rust-src, pkg-config, libssl-dev
 
-Both images also include `node` (Bun via a thin wrapper) with npm/npx standalone, Neovim, zsh, fzf, delta, rtk, zellij, captain-miao (`miao` + `miao-server`), and omp.
+Both images also include `node` (Bun via a thin wrapper) with npm/npx standalone, Neovim, zsh, fzf, delta, zellij, captain-miao (`miao` + `miao-server`), and omp.
