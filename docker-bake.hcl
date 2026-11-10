@@ -72,7 +72,7 @@ variable "YAZI_VERSION" {
 }
 // renovate: datasource=deb depName=git-graph
 variable "GIT_GRAPH_VERSION" {
-  default = "0.8.0-3"
+  default = "0.8.3-1"
 }
 // renovate: datasource=github-releases depName=terrastruct/d2 extractVersion=^v(?<version>.+)$
 variable "D2_VERSION" {
