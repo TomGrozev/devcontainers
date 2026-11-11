@@ -48,7 +48,7 @@ variable "OMP_VERSION" {
 }
 // renovate: datasource=github-releases depName=zellij-org/zellij extractVersion=^v(?<version>.+)$
 variable "ZELLIJ_VERSION" {
-  default = "0.45.1"
+  default = "0.46.0"
 }
 // renovate: datasource=github-releases depName=oven-sh/bun extractVersion=^bun-v(?<version>.+)$
 variable "BUN_VERSION" {
