@@ -81,7 +81,7 @@ variable "D2_VERSION" {
 
 // renovate: datasource=rust-version depName=rust
 variable "RUST_VERSION" {
-  default = "1.99.1"
+  default = "1.100.0"
 }
 
 // ── Target groups ──────────────────────────────────────────────────────────
