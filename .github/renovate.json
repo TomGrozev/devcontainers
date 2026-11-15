@@ -27,6 +27,19 @@
       "datasourceTemplate": "{{{datasource}}}",
       "depNameTemplate": "{{{depName}}}",
       "extractVersionTemplate": "{{{extractVersion}}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Update pinned tool versions in the Coder template",
+      "managerFilePatterns": [
+        "/^coder-template\\/main\\.tf$/"
+      ],
+      "matchStrings": [
+        "\\/\\/ renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)( extractVersion=(?<extractVersion>[^\\s]+))?\\nvariable \"(?<varName>[^\"]+)\" \\{\\n(?:[^\\n]*\\n)*?\\s+default\\s+= \"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "{{{datasource}}}",
+      "depNameTemplate": "{{{depName}}}",
+      "extractVersionTemplate": "{{{extractVersion}}}"
     }
   ],
   "packageRules": [

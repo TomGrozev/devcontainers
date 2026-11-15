@@ -37,6 +37,13 @@ variable "r3_url" {
   description = "r3 server URL for workspaces to register as clients of. Leave empty to disable r3 client setup."
 }
 
+// renovate: datasource=github-releases depName=filebrowser/filebrowser extractVersion=^v(?<version>.+)$
+variable "filebrowser_version" {
+  type        = string
+  default     = "2.63.23"
+  description = "File Browser release installed into each workspace by coder_script.filebrowser."
+}
+
 # ????????? Parameters ??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
 
 data "coder_parameter" "language" {
@@ -661,6 +668,81 @@ resource "coder_app" "zellij_token" {
   share        = "owner"
 }
 
+# File Browser: web file manager for the home volume. The pinned GitHub release
+# is installed on the PVC, not in the image, so the app works with the image
+# already published; a version stamp beside the binary prevents a re-download
+# on every start. Upstream archived the project in 2026, so this pin is the
+# final release and Renovate only updates it while releases exist. File Browser
+# binds loopback and runs with auth disabled: Coder's owner-only app proxy
+# authenticates every request before it reaches this port.
+resource "coder_script" "filebrowser" {
+  agent_id     = coder_agent.main.id
+  display_name = "File Browser"
+  icon         = "/icon/filebrowser.svg"
+  run_on_start = true
+
+  script = <<-EOT
+    set -e
+
+    PORT=13339
+    VERSION="${var.filebrowser_version}"
+    ARCH="${data.coder_provisioner.me.arch}"
+    BIN=/home/dev/.local/bin/filebrowser
+    DB=/home/dev/.local/share/filebrowser/filebrowser.db
+    ASSET="linux-$ARCH-filebrowser.tar.gz"
+
+    # Idempotent like the other boot daemons: the health endpoint is also the
+    # already-running guard. Everything below changes the BoltDB, which a live
+    # daemon keeps locked, so it all runs only when no server answers.
+    if ! curl -sf "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then
+      # A process that is alive but not answering still holds the database lock.
+      pkill -f "$BIN --database" 2>/dev/null || true
+      sleep 1
+
+      mkdir -p /home/dev/.local/bin "$(dirname "$DB")"
+
+      # Reinstall only when the pinned version changes.
+      if [ "$(cat "$BIN.version" 2>/dev/null)" != "$VERSION" ]; then
+        curl -fsSL -o /tmp/filebrowser.tar.gz \
+          "https://github.com/filebrowser/filebrowser/releases/download/v$VERSION/$ASSET"
+        tar -xzf /tmp/filebrowser.tar.gz -C /home/dev/.local/bin filebrowser
+        chmod +x "$BIN"
+        echo "$VERSION" > "$BIN.version"
+        rm -f /tmp/filebrowser.tar.gz
+      fi
+
+      # The database holds the settings; init it once, then re-assert the
+      # runtime config on every start so an edited database cannot drift from
+      # this file.
+      if [ ! -f "$DB" ]; then
+        "$BIN" --database "$DB" config init >/dev/null
+      fi
+      "$BIN" --database "$DB" config set \
+        --root /home/dev --address 127.0.0.1 --port "$PORT" --auth.method=noauth >/dev/null
+
+      setsid nohup "$BIN" --database "$DB" >/tmp/filebrowser.log 2>&1 </dev/null &
+    fi
+  EOT
+}
+
+# File Browser app tile: the boot-started daemon on loopback :13339, served
+# over Coder's authenticated subdomain proxy.
+resource "coder_app" "filebrowser" {
+  agent_id     = coder_agent.main.id
+  slug         = "filebrowser"
+  display_name = "File Browser"
+  icon         = "/icon/filebrowser.svg"
+  url          = "http://localhost:13339"
+  subdomain    = true
+  share        = "owner"
+  open_in      = "tab"
+
+  healthcheck {
+    url       = "http://localhost:13339/health"
+    interval  = 5
+    threshold = 6
+  }
+}
 
 # Refresh dotfiles: opens a terminal in the workspace UI and re-runs
 # `coder dotfiles` to pull the latest and re-apply.

@@ -63,6 +63,8 @@ Parameters are configurable from the Coder UI at workspace creation or (for muta
 | `coder_app.restart_ompweb`               | Button: kills and relaunches the ompweb daemon (useful for recovering wedged processes or updating versions).                                                                                                                                     |
 | `coder_app.zellij_web`                    | Proxies the zellij web terminal via subdomain (`http://localhost:8082`); lands on zellij's session picker. First visit asks for a login token.                                                                                                     |
 | `coder_app.zellij_token`                  | Button: prints the zellij web login token minted at boot (zellij never re-displays it).                                                                                                                                            |
+| `coder_script.filebrowser`                | On-start script that installs the pinned File Browser release on the PVC (cached per version), configures it to serve `/home/dev` on loopback `:13339`, and starts it as a daemon. Authentication is left to Coder's app proxy. |
+| `coder_app.filebrowser`                   | Proxies File Browser via subdomain, so files under `/home/dev` can be browsed, uploaded, downloaded and renamed in the browser.                                                                                                                    |
 | `coder_app.refresh_dotfiles`              | A workspace-app button that re-runs `coder dotfiles` against the current `dotfiles_uri` value to pull the latest dotfiles and re-apply.                                                                                                            |
 
 ## Agent environment variables
@@ -85,6 +87,7 @@ Sessions run server-side so a session started from the laptop keeps running when
 
 + **omp** — The **ompweb** browser UI is started at boot as a standalone daemon on `:30177` (not a pty session, so it does not live in the miao pool). It spawns omp agents directly as child processes. Open the **ompweb** app to browse sessions and drive new ones. Use the **Restart ompweb** button if the daemon hangs.
 - **Zellij (terminal)** — the **Zellij** app is a full mobile terminal served by zellij web on `:8082`. On first visit, copy the token from the **Zellij token** button (one paste per device, remembered for ~4 weeks).
+- **File Browser**: the **File Browser** app is a web file manager for `/home/dev`. Browse, upload, download and rename files without a terminal. It starts with the workspace, and needs no separate login because Coder's owner-only proxy authenticates the request. The upstream project was archived in 2026, so the template pins its final release.
 
 Everything serving over HTTP binds loopback only and is reached through Coder's authenticated subdomain proxy — nothing is exposed directly on the network.
 
