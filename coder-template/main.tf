@@ -720,6 +720,18 @@ resource "coder_script" "filebrowser" {
       "$BIN" --database "$DB" config set \
         --root /home/dev --address 127.0.0.1 --port "$PORT" --auth.method=noauth >/dev/null
 
+      # noauth signs every request in as user 1. A database without that user
+      # answers 401, and the UI shows a login form that no credentials satisfy.
+      # The password is unused while auth stays off, but store one so switching
+      # the auth method later does not lock the account.
+      if ! "$BIN" --database "$DB" users ls 2>/dev/null | awk '$1 == 1 {found = 1} END {exit !found}'; then
+        PASS_FILE="$(dirname "$DB")/admin-password"
+        if [ ! -s "$PASS_FILE" ]; then
+          (umask 077 && od -An -N32 -tx1 /dev/urandom | tr -d ' \n' > "$PASS_FILE")
+        fi
+        "$BIN" --database "$DB" users add admin "$(cat "$PASS_FILE")" --perm.admin >/dev/null
+      fi
+
       setsid nohup "$BIN" --database "$DB" >/tmp/filebrowser.log 2>&1 </dev/null &
     fi
   EOT
