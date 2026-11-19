@@ -52,7 +52,7 @@ variable "ZELLIJ_VERSION" {
 }
 // renovate: datasource=github-releases depName=oven-sh/bun extractVersion=^bun-v(?<version>.+)$
 variable "BUN_VERSION" {
-  default = "1.4.4"
+  default = "1.4.5"
 }
 // renovate: datasource=npm depName=npm
 variable "NPM_VERSION" {
