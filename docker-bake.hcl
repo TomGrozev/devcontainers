@@ -32,7 +32,7 @@ variable "NVIM_VERSION" {
 }
 // renovate: datasource=github-releases depName=dandavison/delta extractVersion=^(?<version>.*)$
 variable "DELTA_VERSION" {
-  default = "0.21.1"
+  default = "0.21.2"
 }
 // renovate: datasource=github-releases depName=BurntSushi/ripgrep extractVersion=^(?<version>.*)$
 variable "RIPGREP_VERSION" {
