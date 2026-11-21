@@ -64,7 +64,7 @@ variable "FD_VERSION" {
 }
 // renovate: datasource=github-releases depName=hyperlogue/captain-miao extractVersion=^v(?<version>.+)$
 variable "MIAO_VERSION" {
-  default = "0.17.0"
+  default = "0.18.0"
 }
 // renovate: datasource=github-releases depName=sxyazi/yazi extractVersion=^v(?<version>.+)$
 variable "YAZI_VERSION" {
