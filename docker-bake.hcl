@@ -44,7 +44,7 @@ variable "BAT_VERSION" {
 }
 // renovate: datasource=github-releases depName=can1357/oh-my-pi extractVersion=^v(?<version>.+)$
 variable "OMP_VERSION" {
-  default = "19.0.1"
+  default = "19.1.0"
 }
 // renovate: datasource=github-releases depName=zellij-org/zellij extractVersion=^v(?<version>.+)$
 variable "ZELLIJ_VERSION" {
