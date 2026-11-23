@@ -131,15 +131,15 @@ To rebuild images manually: trigger **Actions > Build and Push > Run workflow**.
 | --- | --- |
 | Elixir | 1.20.3 |
 | Erlang/OTP | 28.5.0.5 |
-| Rust | 1.97.1 |
+| Rust | 1.100.0 |
 | Debian | trixie-20260803-slim |
-| Neovim | v0.12.4 |
-| npm | 11.19.0 |
-| delta | 0.19.2 |
+| Neovim | v0.12.6 |
+| npm | 11.21.3 |
+| delta | 0.22.0 |
 | ripgrep | 15.2.0 |
 | bat | 0.26.1 |
-| omp | 17.3.7 |
-| git-graph | 0.8.0-3 |
+| omp | 19.1.0 |
+| git-graph | 0.8.3-1 |
 | d2 | 0.9.0 |
 | yazi | 26.9.1 |
 <!-- versions:end -->
