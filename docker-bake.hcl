@@ -76,7 +76,7 @@ variable "GIT_GRAPH_VERSION" {
 }
 // renovate: datasource=github-releases depName=terrastruct/d2 extractVersion=^v(?<version>.+)$
 variable "D2_VERSION" {
-  default = "0.9.0"
+  default = "0.10.0"
 }
 
 // renovate: datasource=rust-version depName=rust
