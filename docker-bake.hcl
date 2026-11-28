@@ -36,7 +36,7 @@ variable "DELTA_VERSION" {
 }
 // renovate: datasource=github-releases depName=BurntSushi/ripgrep extractVersion=^(?<version>.*)$
 variable "RIPGREP_VERSION" {
-  default = "15.2.0"
+  default = "16.0.0"
 }
 // renovate: datasource=github-releases depName=sharkdp/bat extractVersion=^v(?<version>.+)$
 variable "BAT_VERSION" {
