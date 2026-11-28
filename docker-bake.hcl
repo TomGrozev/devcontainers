@@ -40,7 +40,7 @@ variable "RIPGREP_VERSION" {
 }
 // renovate: datasource=github-releases depName=sharkdp/bat extractVersion=^v(?<version>.+)$
 variable "BAT_VERSION" {
-  default = "0.26.1"
+  default = "0.27.0"
 }
 // renovate: datasource=github-releases depName=can1357/oh-my-pi extractVersion=^v(?<version>.+)$
 variable "OMP_VERSION" {
