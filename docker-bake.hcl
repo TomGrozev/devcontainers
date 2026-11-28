@@ -78,6 +78,12 @@ variable "GIT_GRAPH_VERSION" {
 variable "D2_VERSION" {
   default = "0.10.0"
 }
+// Rex terminal server, from Superlogical's apt repo (snapshot channel until a
+// stable release exists). registryUrls live in .github/renovate.json.
+// renovate: datasource=deb depName=rex
+variable "REX_VERSION" {
+  default = "0.1.0~alpha.2705"
+}
 
 // renovate: datasource=rust-version depName=rust
 variable "RUST_VERSION" {
@@ -110,6 +116,7 @@ function "common_args" {
     YAZI_VERSION     = "${YAZI_VERSION}"
     GIT_GRAPH_VERSION = "${GIT_GRAPH_VERSION}"
     D2_VERSION       = "${D2_VERSION}"
+    REX_VERSION      = "${REX_VERSION}"
   }
 }
 

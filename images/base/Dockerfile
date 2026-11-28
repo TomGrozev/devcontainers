@@ -30,6 +30,8 @@ ARG YAZI_VERSION
 ARG GIT_GRAPH_VERSION
 # renovate: datasource=github-releases depName=terrastruct/d2 extractVersion=^v(?<version>.+)$
 ARG D2_VERSION
+# renovate: datasource=deb depName=rex
+ARG REX_VERSION
 
 FROM debian:${DEBIAN_VERSION}
 
@@ -49,6 +51,7 @@ ARG MIAO_VERSION
 ARG YAZI_VERSION
 ARG GIT_GRAPH_VERSION
 ARG D2_VERSION
+ARG REX_VERSION
 ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -371,6 +374,25 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && apt-get install -y --no-install-recommends /tmp/git-graph.deb \
     && rm -f /tmp/git-graph.deb \
     && git-graph --version
+
+# Rex terminal server (personal mode; coder_script.rex in the template starts
+# it). The apt pin outranks Debian's unrelated Perl package also named `rex`.
+# The package also installs the xterm-rex terminfo and the ssh TERM fallback;
+# its systemd units stay unused since the container has no init.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    set -e \
+    && install -d -m 0755 /etc/apt/keyrings \
+    && curl -fsSL -o /etc/apt/keyrings/rex-archive-keyring.gpg \
+        https://pkgs.superlogical.com/rex/keys/rex-archive-keyring.gpg \
+    && chmod 0644 /etc/apt/keyrings/rex-archive-keyring.gpg \
+    && printf 'Types: deb\nURIs: https://pkgs.superlogical.com/rex/apt\nSuites: snapshot\nComponents: main\nSigned-By: /etc/apt/keyrings/rex-archive-keyring.gpg\n' \
+        > /etc/apt/sources.list.d/rex.sources \
+    && printf 'Package: rex\nPin: origin pkgs.superlogical.com\nPin-Priority: 1001\n' \
+        > /etc/apt/preferences.d/rex \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends "rex=${REX_VERSION}" \
+    && rex version
 USER dev
 
 # Default command keeps the container alive when run bare (Coder overrides

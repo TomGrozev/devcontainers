@@ -25,6 +25,7 @@ omp=$(echo "$json" | jq -r '.target.elixir.args.OMP_VERSION // "?"')
 gitgraph=$(echo "$json" | jq -r '.target.elixir.args.GIT_GRAPH_VERSION // "?"')
 d2=$(echo "$json" | jq -r '.target.elixir.args.D2_VERSION // "?"')
 yazi=$(echo "$json" | jq -r '.target.elixir.args.YAZI_VERSION // "?"')
+rex=$(echo "$json" | jq -r '.target.elixir.args.REX_VERSION // "?"')
 
 table="| Component | Version |
 | --- | --- |
@@ -40,7 +41,8 @@ table="| Component | Version |
 | omp | ${omp} |
 | git-graph | ${gitgraph} |
 | d2 | ${d2} |
-| yazi | ${yazi} |"
+| yazi | ${yazi} |
+| rex | ${rex} |"
 
 # Use sed to replace everything between the markers
 if grep -q '<!-- versions:start -->' README.md; then

@@ -69,6 +69,14 @@
       "registryUrls": [
         "https://deb.debian.org/debian?suite=forky&components=main&binaryArch=amd64"
       ]
+    },
+    {
+      "description": "Rex comes from Superlogical's apt repo, snapshot channel",
+      "matchDatasources": ["deb"],
+      "matchPackageNames": ["rex"],
+      "registryUrls": [
+        "https://pkgs.superlogical.com/rex/apt?suite=snapshot&components=main&binaryArch=amd64"
+      ]
     }
   ]
 }

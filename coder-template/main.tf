@@ -602,6 +602,23 @@ resource "coder_app" "ompweb" {
   }
 }
 
+# Rex terminal server: a personal server (runs as dev) that Rex for Mac reaches
+# over `coder config-ssh` hosts (ssh://dev@<host>). Started here so it outlives
+# its sessions; a server that a connection autostarts exits ~10 s after the
+# last session closes. `rex server start` is a no-op when one is running. The
+# login shell gives the server, and so every Rex session, the same env as zsh.
+resource "coder_script" "rex" {
+  agent_id     = coder_agent.main.id
+  display_name = "Rex"
+  icon         = "/icon/terminal.svg"
+  run_on_start = true
+
+  script = <<-EOT
+    set -e
+    zsh -lc 'cd /home/dev/workspace && rex server start'
+  EOT
+}
+
 # Restart ompweb: kills the running ompweb daemon (if any) and starts a fresh
 # one on :30177. ompweb normally comes up at boot (coder_script.ompweb); this
 # button is for picking up a new version or recovering a wedged process. Same

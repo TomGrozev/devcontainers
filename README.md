@@ -21,7 +21,7 @@ All images except the agent images run as user `dev` (UID/GID 1000), shell `/bin
 - Debian trixie-slim
 - `node` (Bun via a thin wrapper) + npm/npx standalone + GitHub CLI
 - Neovim (multi-arch, `/opt/nvim`)
-- delta, ripgrep, bat, omp, git-graph, d2, yazi (system binaries on PATH)
+- delta, ripgrep, bat, omp, git-graph, d2, yazi, rex (system binaries on PATH)
 - apt packages: build-essential, gcc, g++, git, file, jq, fzf, zsh, gpg, openssh-client, curl, ca-certificates, procps, sudo, unzip, zoxide, tmux, locales
 - Chromium runtime libraries so `omp`'s browser tool can launch its bundled browser (NSS/NSPR, ATK, AT-SPI, CUPS, ALSA, Mesa/GBM, X11, Pango, Cairo)
 - Rootless `su`/`sudo` passthrough wrappers
